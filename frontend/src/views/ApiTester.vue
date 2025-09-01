@@ -1,3 +1,8 @@
+/*
+TODO:
+*Una partecita que purebe cada uno de los metodos HTTP y SOAP 
+*/
+
 <script setup>
 import ViewNavigator from "../components/ViewNavigator.vue";
 </script>
