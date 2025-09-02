@@ -1,6 +1,6 @@
 /*
 TODO:
-*Una partecita que purebe cada uno de los metodos HTTP y SOAP 
+*Una partecita que pruebe cada uno de los metodos HTTP y SOAP 
 */
 
 <script setup>

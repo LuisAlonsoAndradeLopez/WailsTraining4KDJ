@@ -1,31 +1,57 @@
-/*
-TODO:
-
-*Placeholder de campo de texto cambiar cuando combobox cambia valor
-*Agregar usuario botón agregar fila como la de desarrollo de software (Y SOLO SE PUEDE AGREGAR 1 A LA VEZ)
-*Modificar usuario, como en desarrollo de software, convertir la fila en campos de texto con validaciones, al igual que agregar usuario
-*/
+/* TODO: *Mensajes de alerta cuando se pica 2 veces boton agregar usuario, estas seguro de agregar usuario y faltan campos por llenar *Modificar usuario, como en desarrollo de
+software, convertir la fila en campos de texto con validaciones, al igual que
+agregar usuario */
 
 <script setup>
 import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
-import { GetAllUsers } from "../../wailsjs/go/services/UserService";
+import { CreateUser, GetAllUsers } from "../../wailsjs/go/services/UserService";
 
+const findByTextInputPlaceholder = ref("Enter a name...");
+
+//constants for handle the users table
 const rows = ref([]);
 const users = ref([]);
-
 const usersSearchQuery = ref("");
 const usersSearchField = ref("name");
+const isAddingANewUser = ref(false);
+const userToAdd = ref({
+  name: "",
+  surnames: "",
+  birth_date: "",
+  phone_number: "",
+  email: "",
+});
 
-//
-
+//Buttons onclick functions
 function addUserButtonOnClick() {
-  rows.value.push(["", "", "", "", "", ""]);
+  isAddingANewUser.value = true;
 }
 
-function deleteRow(index) {
-  rows.value.splice(index, 1);
+function saveTheUserButtonOnClick() {
+  if (
+    userToAdd.value.name &&
+    userToAdd.value.surnames &&
+    userToAdd.value.birth_date &&
+    userToAdd.value.phone_number &&
+    userToAdd.value.email
+  ) {
+    CreateUser(userToAdd.value);
+    isAdding.value = false;
+  } else {
+  }
+}
+
+function cancelAddingUserButtonOnClick() {
+  isAddingANewUser.value = false;
+  userToAdd.value = {
+    name: "",
+    surnames: "",
+    birth_date: "",
+    phone_number: "",
+    email: "",
+  };
 }
 
 //Auxiliary functions
@@ -59,12 +85,32 @@ function mapUserToRow(user) {
   ];
 }
 
+function updateFindByTextInputPlaceholder() {
+  switch (usersSearchField.value) {
+    case "name":
+      findByTextInputPlaceholder.value = "Enter a name...";
+      break;
+    case "id":
+      findByTextInputPlaceholder.value = "Enter an ID...";
+      break;
+  }
+}
+
+async function getUsersFromDatabaseAndLastUserID() {
+  const data = await GetAllUsers();
+  users.value = data;
+  lastUserID = users.value[users.value.length - 1][0];
+
+  if (!isNaN(lastUserID)) {
+    lastUserID = parseInt(lastUserID, 10) + 1;
+  }
+}
+
 //Vue.js functions
 onMounted(async () => {
   try {
-    const data = await GetAllUsers();
-    users.value = data;
-    rows.value = data.map(mapUserToRow); // ✅ Reuse helper function here
+    getUsersFromDatabaseAndLastUserID();
+    rows.value = users.value.map(mapUserToRow);
   } catch (err) {
     console.error("Failed to load users:", err);
   }
@@ -86,10 +132,11 @@ watch([usersSearchQuery, usersSearchField], () => {
       v-model="usersSearchQuery"
       class="form-control form-control-md w-50"
       id="find-by-text-input"
-      placeholder="Name"
+      :placeholder="findByTextInputPlaceholder"
     />
     <select
       v-model="usersSearchField"
+      @change="updateFindByTextInputPlaceholder"
       class="form-select w-25"
       id="find-by-select"
     >
@@ -123,16 +170,72 @@ watch([usersSearchQuery, usersSearchField], () => {
             <td
               v-for="(value, colIndex) in row"
               :key="'cell-' + rowIndex + '-' + colIndex"
-              class="px-3 py-3"
+              class="px-3 py-2"
             >
               <label class="fs-5">{{ value }}</label>
             </td>
             <td>
+              <button class="btn btn-md btn-secondary" @click="">Update</button>
+            </td>
+          </tr>
+          <tr v-if="isAddingANewUser">
+            <td class="px-2 py-2">
+              <label>{{ lastUserID }}</label>
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToAdd.name"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the name..."
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToAdd.surnames"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the surnames..."
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToAdd.birth_date"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the birthdate..."
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToAdd.phone_number"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the phonenumber..."
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToAdd.email"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the email..."
+              />
+            </td>
+            <td
+              class="d-flex flex-column justify-content-center align-items-center px-2 py-2 gap-1"
+            >
               <button
-                class="btn btn-md btn-secondary"
-                @click="deleteRow(rowIndex)"
+                @click="saveTheUserButtonOnClick"
+                class="btn btn-success text-white px-2 py-1 rounded mr-2"
               >
-                Update
+                Save the User
+              </button>
+              <button
+                @click="cancelAddingUserButtonOnClick"
+                class="btn btn-danger text-white px-2 py-1 rounded"
+              >
+                Cancel
               </button>
             </td>
           </tr>
