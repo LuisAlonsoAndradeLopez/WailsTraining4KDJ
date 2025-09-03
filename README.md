@@ -16,4 +16,5 @@ npm install bootstrap
 npm install bootstrap-icons
 npm install bootstrap-vue-3
 npm install vue-router@4
+npm install sweetalert2
 ```

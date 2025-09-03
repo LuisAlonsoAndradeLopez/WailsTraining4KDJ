@@ -1,8 +1,8 @@
-/* TODO: *Mensajes de alerta cuando se pica 2 veces boton agregar usuario, estas seguro de agregar usuario y faltan campos por llenar *Modificar usuario, como en desarrollo de
-software, convertir la fila en campos de texto con validaciones, al igual que
-agregar usuario */
+/* TODO: *Modificar usuario, como en desarrollo de software, convertir la fila
+en campos de texto con validaciones, al igual que agregar usuario */
 
 <script setup>
+import Swal from "sweetalert2";
 import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
@@ -16,6 +16,7 @@ const users = ref([]);
 const usersSearchQuery = ref("");
 const usersSearchField = ref("name");
 const isAddingANewUser = ref(false);
+const lastUserID = ref(0);
 const userToAdd = ref({
   name: "",
   surnames: "",
@@ -26,10 +27,14 @@ const userToAdd = ref({
 
 //Buttons onclick functions
 function addUserButtonOnClick() {
-  isAddingANewUser.value = true;
+  if (!isAddingANewUser.value) {
+    isAddingANewUser.value = true;
+  } else {
+    Swal.fire("Error", "The row for adding user is already shown.", "error");
+  }
 }
 
-function saveTheUserButtonOnClick() {
+async function saveTheUserButtonOnClick() {
   if (
     userToAdd.value.name &&
     userToAdd.value.surnames &&
@@ -37,14 +42,31 @@ function saveTheUserButtonOnClick() {
     userToAdd.value.phone_number &&
     userToAdd.value.email
   ) {
-    CreateUser(userToAdd.value);
-    isAdding.value = false;
+    const birthDate = new Date(userToAdd.value.birth_date);
+    const birthDateISO = birthDate.toISOString();
+
+    await CreateUser({
+      ...userToAdd.value,
+      birth_date: birthDateISO,
+    });
+
+    isAddingANewUser.value = false;
+    clearAddUserRow();
+    await fillUsersTableAndValidations();
+
+    Swal.fire("Success", "The user has been added successfully!", "success");
   } else {
+    Swal.fire("Error", "There are missing fields.", "error");
   }
 }
 
 function cancelAddingUserButtonOnClick() {
   isAddingANewUser.value = false;
+  clearAddUserRow();
+}
+
+//Auxiliary functions
+function clearAddUserRow() {
   userToAdd.value = {
     name: "",
     surnames: "",
@@ -54,7 +76,6 @@ function cancelAddingUserButtonOnClick() {
   };
 }
 
-//Auxiliary functions
 function filterUsers() {
   const query = usersSearchQuery.value.trim().toLowerCase();
   const field = usersSearchField.value;
@@ -96,21 +117,24 @@ function updateFindByTextInputPlaceholder() {
   }
 }
 
-async function getUsersFromDatabaseAndLastUserID() {
+async function fillUsersTableAndValidations() {
   const data = await GetAllUsers();
   users.value = data;
-  lastUserID = users.value[users.value.length - 1][0];
 
-  if (!isNaN(lastUserID)) {
-    lastUserID = parseInt(lastUserID, 10) + 1;
+  if (users.value.length > 0) {
+    const lastUser = users.value[users.value.length - 1];
+    lastUserID.value = parseInt(lastUser.id, 10) + 1;
+  } else {
+    lastUserID.value = 1;
   }
+
+  rows.value = users.value.map(mapUserToRow);
 }
 
 //Vue.js functions
 onMounted(async () => {
   try {
-    getUsersFromDatabaseAndLastUserID();
-    rows.value = users.value.map(mapUserToRow);
+    await fillUsersTableAndValidations();
   } catch (err) {
     console.error("Failed to load users:", err);
   }
@@ -180,7 +204,7 @@ watch([usersSearchQuery, usersSearchField], () => {
           </tr>
           <tr v-if="isAddingANewUser">
             <td class="px-2 py-2">
-              <label>{{ lastUserID }}</label>
+              <label class="fs-5">{{ lastUserID }}</label>
             </td>
             <td class="px-2 py-2">
               <input
@@ -188,6 +212,7 @@ watch([usersSearchQuery, usersSearchField], () => {
                 type="text"
                 class="rounded p-1 w-100"
                 placeholder="Enter the name..."
+                maxlength="30"
               />
             </td>
             <td class="px-2 py-2">
@@ -196,12 +221,13 @@ watch([usersSearchQuery, usersSearchField], () => {
                 type="text"
                 class="rounded p-1 w-100"
                 placeholder="Enter the surnames..."
+                maxlength="30"
               />
             </td>
             <td class="px-2 py-2">
               <input
                 v-model="userToAdd.birth_date"
-                type="text"
+                type="date"
                 class="rounded p-1 w-100"
                 placeholder="Enter the birthdate..."
               />
@@ -209,17 +235,19 @@ watch([usersSearchQuery, usersSearchField], () => {
             <td class="px-2 py-2">
               <input
                 v-model="userToAdd.phone_number"
-                type="text"
+                type="tel"
                 class="rounded p-1 w-100"
                 placeholder="Enter the phonenumber..."
+                maxlength="15"
               />
             </td>
             <td class="px-2 py-2">
               <input
                 v-model="userToAdd.email"
-                type="text"
+                type="email"
                 class="rounded p-1 w-100"
                 placeholder="Enter the email..."
+                maxlength="100"
               />
             </td>
             <td
