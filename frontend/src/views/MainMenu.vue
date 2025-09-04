@@ -5,8 +5,8 @@ function goToUsersManager() {
   changeView("UsersManager");
 }
 
-function goToApiTester() {
-  changeView("ApiTester");
+function goToSOAPApiTester() {
+  changeView("SOAPApiTester");
 }
 </script>
 
@@ -27,7 +27,7 @@ function goToApiTester() {
           <i class="bi bi-person fs-1"></i>
         </button>
 
-        <button class="btn btn-primary btn-lg" @click="goToApiTester">
+        <button class="btn btn-primary btn-lg" @click="goToSOAPApiTester">
           <p class="fw-bold fs-1">Go to Api Tester</p>
           <i class="bi bi-cloud-arrow-up fs-1"></i>
         </button>
