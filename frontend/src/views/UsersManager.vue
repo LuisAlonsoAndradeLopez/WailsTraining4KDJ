@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
-import { CreateUser, GetAllUsers } from "../../wailsjs/go/services/UserService";
+import { CreateUser, GetAllUsers, UpdateUser } from "../../wailsjs/go/services/UserService";
 
 const findByTextInputPlaceholder = ref("Enter a name...");
 
@@ -16,8 +16,17 @@ const users = ref([]);
 const usersSearchQuery = ref("");
 const usersSearchField = ref("name");
 const isAddingANewUser = ref(false);
+const isUpdatingAUser = ref(false);
 const lastUserID = ref(0);
 const userToAdd = ref({
+  name: "",
+  surnames: "",
+  birth_date: "",
+  phone_number: "",
+  email: "",
+});
+const userToUpdate = ref({
+  id: "",
   name: "",
   surnames: "",
   birth_date: "",
@@ -32,6 +41,16 @@ function addUserButtonOnClick() {
   } else {
     Swal.fire("Error", "The row for adding user is already shown.", "error");
   }
+}
+
+function cancelAddingUserButtonOnClick() {
+  isAddingANewUser.value = false;
+  clearAddUserRow();
+}
+
+function cancelUpdatingUserButtonOnClick() {
+  isUpdatingAUser.value = false;
+  clearUpdateUserRow();
 }
 
 async function saveTheUserButtonOnClick() {
@@ -60,14 +79,56 @@ async function saveTheUserButtonOnClick() {
   }
 }
 
-function cancelAddingUserButtonOnClick() {
-  isAddingANewUser.value = false;
-  clearAddUserRow();
+async function updateTheUserButtonOnClick() {
+  if (
+    userToUpdate.value.name &&
+    userToUpdate.value.surnames &&
+    userToUpdate.value.birth_date &&
+    userToUpdate.value.phone_number &&
+    userToUpdate.value.email
+  ) {
+    const birthDate = new Date(userToUpdate.value.birth_date);
+    const birthDateISO = birthDate.toISOString();
+
+    await UpdateUser({
+      ...userToUpdate.value,
+      birth_date: birthDateISO,
+    });
+
+    isUpdatingAUser.value = false;
+    clearUpdateUserRow();
+    await fillUsersTableAndValidations();
+
+    Swal.fire("Success", "The user has been updated successfully!", "success");
+  } else {
+    Swal.fire("Error", "There are missing fields.", "error");
+  }
+}
+
+function updateUserButtonOnClick(userData) {
+  userToUpdate.value.id = parseInt(userData[0]);
+  userToUpdate.value.name = userData[1];
+  userToUpdate.value.surnames = userData[2];
+  userToUpdate.value.birth_date = userData[3];
+  userToUpdate.value.phone_number = userData[4];
+  userToUpdate.value.email = userData[5];
+  isUpdatingAUser.value = true;
 }
 
 //Auxiliary functions
 function clearAddUserRow() {
   userToAdd.value = {
+    name: "",
+    surnames: "",
+    birth_date: "",
+    phone_number: "",
+    email: "",
+  };
+}
+
+function clearUpdateUserRow() {
+  userToUpdate.value = {
+    id: "",
     name: "",
     surnames: "",
     birth_date: "",
@@ -199,9 +260,15 @@ watch([usersSearchQuery, usersSearchField], () => {
               <label class="fs-5">{{ value }}</label>
             </td>
             <td>
-              <button class="btn btn-md btn-secondary" @click="">Update</button>
+              <button
+                class="btn btn-md btn-secondary"
+                @click="updateUserButtonOnClick(row)"
+              >
+                Update
+              </button>
             </td>
           </tr>
+
           <tr v-if="isAddingANewUser">
             <td class="px-2 py-2">
               <label class="fs-5">{{ lastUserID }}</label>
@@ -261,6 +328,72 @@ watch([usersSearchQuery, usersSearchField], () => {
               </button>
               <button
                 @click="cancelAddingUserButtonOnClick"
+                class="btn btn-danger text-white px-2 py-1 rounded"
+              >
+                Cancel
+              </button>
+            </td>
+          </tr>
+
+          <tr v-if="isUpdatingAUser">
+            <td class="px-2 py-2">
+              <label class="fs-5">{{ userToUpdate.id }}</label>
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToUpdate.name"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the name..."
+                maxlength="30"
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToUpdate.surnames"
+                type="text"
+                class="rounded p-1 w-100"
+                placeholder="Enter the surnames..."
+                maxlength="30"
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToUpdate.birth_date"
+                type="date"
+                class="rounded p-1 w-100"
+                placeholder="Enter the birthdate..."
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToUpdate.phone_number"
+                type="tel"
+                class="rounded p-1 w-100"
+                placeholder="Enter the phonenumber..."
+                maxlength="15"
+              />
+            </td>
+            <td class="px-2 py-2">
+              <input
+                v-model="userToUpdate.email"
+                type="email"
+                class="rounded p-1 w-100"
+                placeholder="Enter the email..."
+                maxlength="100"
+              />
+            </td>
+            <td
+              class="d-flex flex-column justify-content-center align-items-center px-2 py-2 gap-1"
+            >
+              <button
+                @click="updateTheUserButtonOnClick"
+                class="btn btn-success text-white px-2 py-1 rounded mr-2"
+              >
+                Update the User
+              </button>
+              <button
+                @click="cancelUpdatingUserButtonOnClick"
                 class="btn btn-danger text-white px-2 py-1 rounded"
               >
                 Cancel

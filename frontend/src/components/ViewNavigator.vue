@@ -18,13 +18,13 @@ function goToUsersManager() {
   <div
     class="d-flex flex-row justify-content-center align-items-center gap-5 py-3 bg-dark"
   >
-    <button class="btn btn-primary btn-lg" @click="goToMainMenu">
+    <button class="btn btn-dark btn-lg" @click="goToMainMenu">
       Go to Main Menu
     </button>
-    <button class="btn btn-primary btn-lg" @click="goToUsersManager">
+    <button class="btn btn-dark btn-lg" @click="goToUsersManager">
       Go to Users Manager
     </button>
-    <button class="btn btn-primary btn-lg" @click="goToApiTester">
+    <button class="btn btn-dark btn-lg" @click="goToApiTester">
       Go to Api Tester
     </button>
   </div>
