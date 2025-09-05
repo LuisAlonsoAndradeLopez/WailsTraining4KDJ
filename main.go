@@ -12,14 +12,11 @@ import (
 	"mini-sistema-prueba-de-tecnologias/backend"
 )
 
-//go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	// Create an instance of the app st	ructure
 	app := backend.NewApp()
 
-	// Create application with options
 	err := wails.Run(&options.App{
 		Title:  "mini-sistema-prueba-de-tecnologias",
 		Width:  1024,
@@ -31,6 +28,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 			app.UserService,
+			app.SoapService,
 		},
 		OnStartup: func(ctx context.Context) {
 			runtime.WindowMaximise(ctx)

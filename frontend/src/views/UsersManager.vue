@@ -1,6 +1,3 @@
-/* TODO: *Modificar usuario, como en desarrollo de software, convertir la fila
-en campos de texto con validaciones, al igual que agregar usuario */
-
 <script setup>
 import Swal from "sweetalert2";
 import { onMounted, ref, watch } from "vue";

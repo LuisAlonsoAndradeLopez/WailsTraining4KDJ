@@ -8,6 +8,7 @@ En la carpeta raíz:
 ```bash
 go get gorm.io/gorm@v1.30.2
 go get gorm.io/driver/mysql@v1.6.0
+go get siteminds.dev/gosoap@latest
 ```
 
 En la carpeta "frontend"

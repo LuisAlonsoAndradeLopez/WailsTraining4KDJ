@@ -1,12 +1,12 @@
 <script setup>
 import { changeView } from "../viewStore.js";
 
-function goToSOAPApiTester() {
-  changeView("ApiTester");
-}
-
 function goToMainMenu() {
   changeView("MainMenu");
+}
+
+function goToSOAPApiTester() {
+  changeView("SOAPApiTester");
 }
 
 function goToUsersManager() {

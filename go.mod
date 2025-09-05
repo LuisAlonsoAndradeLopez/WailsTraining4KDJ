@@ -8,6 +8,8 @@ require (
 	gorm.io/gorm v1.30.2
 )
 
+require siteminds.dev/gosoap v1.5.6
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
