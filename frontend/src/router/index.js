@@ -1,18 +1,24 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import SOAPApiTester from '../views/SOAPApiTester.vue'
 import MainMenu from '../views/MainMenu.vue'
+import RESTApiTester from '../views/RESTApiTester.vue'
+import SOAPApiTester from '../views/SOAPApiTester.vue'
 import UsersManager from '../views/UsersManager.vue'
 
 const routes = [
   {
-    path: '/soap-api-tester',
-    name: 'SOAPApiTester',
-    component: SOAPApiTester
-  },
-  {
     path: '/',
     name: 'MainMenu',
     component: MainMenu
+  },
+  {
+    path: '/rest-api-tester',
+    name: 'RESTApiTester',
+    component: RESTApiTester
+  },
+  {
+    path: '/soap-api-tester',
+    name: 'SOAPApiTester',
+    component: SOAPApiTester
   },
   {
     path: '/users-manager',

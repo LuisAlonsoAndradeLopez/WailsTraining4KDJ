@@ -7,10 +7,12 @@ import { currentView } from './viewStore.js'
 import MainMenu from './views/MainMenu.vue'
 import UsersManager from './views/UsersManager.vue'
 import SOAPApiTester from './views/SOAPApiTester.vue'
+import RESTApiTester from './views/RESTApiTester.vue'
 
 function getView(viewName) {
   if (viewName === 'MainMenu') return MainMenu
   if (viewName === 'UsersManager') return UsersManager
   if (viewName === 'SOAPApiTester') return SOAPApiTester
+  if (viewName === 'RESTApiTester') return RESTApiTester
 }
 </script>

@@ -27,8 +27,9 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		Bind: []interface{}{
 			app,
-			app.UserService,
+			app.RestService,
 			app.SoapService,
+			app.UserService,
 		},
 		OnStartup: func(ctx context.Context) {
 			runtime.WindowMaximise(ctx)

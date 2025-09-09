@@ -9,6 +9,7 @@ En la carpeta raíz:
 go get gorm.io/gorm@v1.30.2
 go get gorm.io/driver/mysql@v1.6.0
 go get siteminds.dev/gosoap@latest
+go get github.com/go-resty/resty/v2
 ```
 
 En la carpeta "frontend"

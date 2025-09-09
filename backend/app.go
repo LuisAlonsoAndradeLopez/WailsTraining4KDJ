@@ -10,8 +10,9 @@ import (
 type App struct {
 	ctx context.Context
 
-	UserService *services.UserService
+	RestService *services.RestService
 	SoapService *services.SoapService
+	UserService *services.UserService
 }
 
 func NewApp() *App {
@@ -21,10 +22,11 @@ func NewApp() *App {
 	}
 
 	return &App{
-		UserService: services.NewUserService(database),
+		RestService: services.NewRestService(),
 		SoapService: services.NewSoapService(
 			"https://www.dataaccess.com/webservicesserver/numberconversion.wso?WSDL",
 		),
+		UserService: services.NewUserService(database),
 	}
 }
 
