@@ -1,4 +1,3 @@
-/* TODO: *Verificar si las salidas de los metodos http son buenas buenas */
 <script setup>
 import { ref } from "vue";
 import Swal from "sweetalert2";
@@ -33,7 +32,7 @@ async function getButtonOnClick() {
 
 async function postButtonOnClick() {
   if (numberToHTTPPost.value >= 1 && numberToHTTPPost.value <= 200) {
-    httpPostResult.value = await CreatePost(parseInt(numberToHTTPPost));
+    httpPostResult.value = await CreatePost(parseInt(numberToHTTPPost), "");
   } else {
     Swal.fire("Error", "The number should be between 1 and 200.", "error");
   }
@@ -41,7 +40,7 @@ async function postButtonOnClick() {
 
 async function putButtonOnClick() {
   if (numberToHTTPPut.value >= 1 && numberToHTTPPut.value <= 200) {
-    httpPutResult.value = await PutPost(parseInt(numberToHTTPPut));
+    httpPutResult.value = await PutPost(parseInt(numberToHTTPPut), "");
   } else {
     Swal.fire("Error", "The number should be between 1 and 200.", "error");
   }
@@ -49,7 +48,7 @@ async function putButtonOnClick() {
 
 async function patchButtonOnClick() {
   if (numberToHTTPPatch.value >= 1 && numberToHTTPPatch.value <= 200) {
-    httpPatchResult.value = await PatchPost(parseInt(numberToHTTPPatch));
+    httpPatchResult.value = await PatchPost(parseInt(numberToHTTPPatch), "");
   } else {
     Swal.fire("Error", "The number should be between 1 and 200.", "error");
   }

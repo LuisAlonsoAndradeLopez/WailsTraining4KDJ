@@ -1,4 +1,4 @@
-module mini-sistema-prueba-de-tecnologias
+module wailstraining4kdj
 
 go 1.23.0
 

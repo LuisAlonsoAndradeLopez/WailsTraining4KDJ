@@ -9,7 +9,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"mini-sistema-prueba-de-tecnologias/backend"
+	"wailstraining4kdj/backend"
 )
 
 var assets embed.FS
@@ -18,7 +18,7 @@ func main() {
 	app := backend.NewApp()
 
 	err := wails.Run(&options.App{
-		Title:  "mini-sistema-prueba-de-tecnologias",
+		Title:  "WailsTraining4KDJ",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{

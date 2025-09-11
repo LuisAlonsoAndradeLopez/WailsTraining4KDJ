@@ -3,8 +3,8 @@ package backend
 import (
 	"context"
 
-	"mini-sistema-prueba-de-tecnologias/backend/db"
-	"mini-sistema-prueba-de-tecnologias/backend/services"
+	"wailstraining4kdj/backend/db"
+	"wailstraining4kdj/backend/services"
 )
 
 type App struct {

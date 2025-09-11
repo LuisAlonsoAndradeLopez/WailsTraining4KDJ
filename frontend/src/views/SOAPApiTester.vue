@@ -61,7 +61,7 @@ async function convertNumbersToDollars() {
         <h2 class="fw-bold fs-1">Number to Dollars</h2>
         <input
           v-model="numbersToConvertToDollars"
-          type="number"
+          type="number" 
           class="rounded p-1 w-100 form-control-lg"
           placeholder="Enter the numbers"
           maxlength="30"

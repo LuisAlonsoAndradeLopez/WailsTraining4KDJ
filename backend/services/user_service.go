@@ -1,7 +1,7 @@
 package services
 
 import (
-	"mini-sistema-prueba-de-tecnologias/backend/models"
+	"wailstraining4kdj/backend/models"
 
 	"gorm.io/gorm"
 )

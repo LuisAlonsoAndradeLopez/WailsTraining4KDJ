@@ -20,3 +20,17 @@ npm install bootstrap-vue-3
 npm install vue-router@4
 npm install sweetalert2
 ```
+
+## Poder crear el instalador
+Para poder crear el instalador, primero tienes que instalar depencencias, las cuales se instalan con los comandos siguientes:
+```bash
+npm install --save-dev electron-builder
+```
+
+Ya una vez que estén ejecutados esos comandos que instalan dependencias, deberás ejecutar los siguientes para poder crear el instalador
+```bash
+cd packager
+```
+```bash
+npm run dist
+```
