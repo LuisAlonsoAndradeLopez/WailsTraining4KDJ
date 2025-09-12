@@ -10,6 +10,8 @@ go get gorm.io/gorm@v1.30.2
 go get gorm.io/driver/mysql@v1.6.0
 go get siteminds.dev/gosoap@latest
 go get github.com/go-resty/resty/v2
+go get go.mongodb.org/mongo-driver/mongo
+go get github.com/qiniu/qmgo
 ```
 
 En la carpeta "frontend"
@@ -22,15 +24,8 @@ npm install sweetalert2
 ```
 
 ## Poder crear el instalador
-Para poder crear el instalador, primero tienes que instalar depencencias, las cuales se instalan con los comandos siguientes:
+Para poder crear el instalador, unicamente se tiene que ejecutar este comando:
 ```bash
-npm install --save-dev electron-builder
+wails build -nsis
 ```
-
-Ya una vez que estén ejecutados esos comandos que instalan dependencias, deberás ejecutar los siguientes para poder crear el instalador
-```bash
-cd packager
-```
-```bash
-npm run dist
-```
+Una vez ejecutado, el instalador aparecerá en la carpeta build\bin

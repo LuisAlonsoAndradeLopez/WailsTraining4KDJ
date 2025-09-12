@@ -10,23 +10,25 @@ import (
 type App struct {
 	ctx context.Context
 
+	BookService *services.BookService
 	RestService *services.RestService
 	SoapService *services.SoapService
 	UserService *services.UserService
 }
 
 func NewApp() *App {
-	database, err := db.ConnectDB()
+	mysql_database, err := db.ConnectMySQLDB()
 	if err != nil {
 		panic(err)
 	}
 
 	return &App{
+		BookService: services.NewBookService(),
 		RestService: services.NewRestService(),
 		SoapService: services.NewSoapService(
 			"https://www.dataaccess.com/webservicesserver/numberconversion.wso?WSDL",
 		),
-		UserService: services.NewUserService(database),
+		UserService: services.NewUserService(mysql_database),
 	}
 }
 

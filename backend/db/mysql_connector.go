@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func ConnectDB() (*gorm.DB, error) {
+func ConnectMySQLDB() (*gorm.DB, error) {
 	dataSourceName := "root:FechaDeInicio#28082025@tcp(127.0.0.1:3306)/WailsTraining4KDJ?parseTime=true"
 	database, err := gorm.Open(mysql.Open(dataSourceName), &gorm.Config{})
 	if err != nil {
