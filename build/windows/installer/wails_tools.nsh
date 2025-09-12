@@ -5,10 +5,10 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "WailsTraining4KDJ"
+    !define INFO_PROJECTNAME "wailstraining4kdj"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "WailsTraining4KDJ"
+    !define INFO_COMPANYNAME "Luis Alonso Andrade López"
 !endif
 !ifndef INFO_PRODUCTNAME
     !define INFO_PRODUCTNAME "WailsTraining4KDJ"
@@ -17,7 +17,7 @@
     !define INFO_PRODUCTVERSION "1.0.0"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "Copyright........."
+    !define INFO_COPYRIGHT "© 2025 Luis Alonso Andrade López"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"

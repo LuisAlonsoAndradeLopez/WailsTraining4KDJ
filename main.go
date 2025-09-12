@@ -12,6 +12,9 @@ import (
 	"wailstraining4kdj/backend"
 )
 
+// THIS COMMENTS SHOULDN'T BE DELETED
+//
+//go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {

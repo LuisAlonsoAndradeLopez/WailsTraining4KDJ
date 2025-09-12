@@ -1,6 +1,6 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "WailsTraining4KDJ",
+  "name": "wailstraining4kdj",
   "outputfilename": "WailsTraining4KDJ",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
@@ -9,5 +9,17 @@
   "author": {
     "name": "Royer Dunkan Fox",
     "email": ""
+  },
+  "info": {
+    "companyName": "Luis Alonso Andrade López",
+    "productName": "WailsTraining4KDJ",
+    "comments": "A Wails + Vue.js desktop application",
+    "copyright": "© 2025 Luis Alonso Andrade López",
+    "website": "https://mycompany.com"
+  },
+
+  "output": {
+    "binary": "WailsTraining4KDJ",
+    "console": true
   }
 }
