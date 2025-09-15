@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import MainMenu from '../views/MainMenu.vue'
+import BooksManager from '../views/BooksManager.vue'
 import RESTApiTester from '../views/RESTApiTester.vue'
 import SOAPApiTester from '../views/SOAPApiTester.vue'
 import UsersManager from '../views/UsersManager.vue'
@@ -9,6 +10,11 @@ const routes = [
     path: '/',
     name: 'MainMenu',
     component: MainMenu
+  },
+  {
+    path: '/books-manager',
+    name: 'BooksManager',
+    component: BooksManager
   },
   {
     path: '/rest-api-tester',

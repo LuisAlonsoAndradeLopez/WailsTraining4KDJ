@@ -16,6 +16,10 @@ function goToSOAPApiTester() {
 function goToUsersManager() {
   changeView("UsersManager");
 }
+
+function goToBooksManager() {
+  changeView("BooksManager");
+}
 </script>
 
 <template>
@@ -33,6 +37,9 @@ function goToUsersManager() {
     </button>
     <button class="btn btn-dark btn-lg border" @click="goToRESTApiTester">
       Go to REST Api Tester
+    </button>
+    <button class="btn btn-dark btn-lg border" @click="goToBooksManager">
+      Go to Books Manager
     </button>
   </div>
 </template>
