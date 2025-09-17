@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"time"
 
 	"github.com/qiniu/qmgo"
 	"go.mongodb.org/mongo-driver/bson"
@@ -54,7 +53,6 @@ func (s *BookService) UpdateBook(id string, update bson.M) error {
 	if err != nil {
 		return err
 	}
-	update["updated_at"] = time.Now()
 	return s.collection.UpdateId(context.Background(), oid, bson.M{"$set": update})
 }
 

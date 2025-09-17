@@ -1,21 +1,24 @@
 <script setup>
-import { ref } from "vue";
+import Swal from "sweetalert2";
+import { onMounted, ref, watch } from "vue";
 import ViewNavigator from "../components/ViewNavigator.vue";
 
-import { CreateBook, GetBooks, UpdateBook } from "../../wailsjs/go/services/BookService";
+import {
+  CreateBook,
+  GetBooks,
+  UpdateBook,
+} from "../../wailsjs/go/services/BookService";
 
-const findByTextInputPlaceholder = ref("Enter a id...");
+const findByTextInputPlaceholder = ref("Enter a title...");
 
+const allBooks = ref([]);
+const filteredBooks = ref([]);
 const booksSearchQuery = ref("");
-const booksSearchField = ref("id");
-
+const booksSearchField = ref("title");
 const isAddingANewBook = ref(false);
 const isSelectedABook = ref(false);
 const isUpdatingABook = ref(false);
 const nothingAboutBooksCRUDSelected = ref(true);
-
-const lastBookID = ref(0);
-
 const bookToAdd = ref({
   id: "",
   title: "",
@@ -43,6 +46,8 @@ const selectedBook = ref({
 //Buttons onclick functions
 function addBookButton1OnClick() {
   nothingAboutBooksCRUDSelected.value = false;
+  isSelectedABook.value = false;
+  isUpdatingABook.value = false;
   isAddingANewBook.value = true;
 }
 
@@ -52,21 +57,49 @@ function cancelAddBookButtonOnClick() {
 }
 
 function addBookButton2OnClick() {
+  if (
+    bookToUpdate.value.title &&
+    bookToUpdate.value.author &&
+    bookToUpdate.value.published_at &&
+    bookToUpdate.value.pages > 0
+  ) {
+    const birthDate = new Date(userToAdd.value.birth_date);
+    const birthDateISO = birthDate.toISOString();
+
+    await CreateUser({
+      ...userToAdd.value,
+      birth_date: birthDateISO,
+    });
+
+    isAddingANewUser.value = false;
+    clearAddUserRow();
+    await fillUsersTableAndValidations();
+
+    Swal.fire("Success", "The user has been added successfully!", "success");
+  } else {
+    Swal.fire("Error", "There are missing fields.", "error");
+  }
+
   isAddingANewBook.value = false;
   nothingAboutBooksCRUDSelected.value = true;
+  clearAddBookRow();
 }
 
-function selectABookButtonOnClick() {
+function selectABookButtonOnClick(registerNumber) {
+  fillSelectedBook(filteredBooks.value[registerNumber]);
   nothingAboutBooksCRUDSelected.value = false;
+  isAddingANewBook.value = false;
   isSelectedABook.value = true;
 }
 
 function cancelUpdateBookButton1OnClick() {
   isSelectedABook.value = false;
   nothingAboutBooksCRUDSelected.value = true;
+  clearSelectedBookRow();
 }
 
 function updateBookButton1OnClick() {
+  fillBookToUpdate(selectedBook.value);
   isSelectedABook.value = false;
   isUpdatingABook.value = true;
 }
@@ -74,12 +107,133 @@ function updateBookButton1OnClick() {
 function cancelUpdateBookButton2OnClick() {
   isUpdatingABook.value = false;
   isSelectedABook.value = true;
+  clearUpdateBookRow();
 }
 
-function updateBookButton2OnClick() {
-  isUpdatingABook.value = false;
-  isSelectedABook.value = true;
+async function updateBookButton2OnClick() {
+  if (
+    bookToUpdate.value.title &&
+    bookToUpdate.value.author &&
+    bookToUpdate.value.published_at &&
+    bookToUpdate.value.pages > 0
+  ) {
+    const publishedAt = new Date(bookToUpdate.value.published_at);
+    const publishedAtISO = publishedAt.toISOString();
+
+    await UpdateBook(bookToUpdate.value.id, {
+      title: bookToUpdate.value.title,
+      author: bookToUpdate.value.author,
+      published_at: publishedAtISO,
+      pages: bookToUpdate.value.pages,
+    });
+
+    isUpdatingABook.value = false;
+    nothingAboutBooksCRUDSelected.value = true;
+    clearSelectedBookRow();
+    clearUpdateBookRow();
+    await fillBooksTableAndValidations();
+
+    Swal.fire("Success", "The book has been updated successfully!", "success");
+  } else {
+    Swal.fire("Error", "There are missing fields.", "error");
+  }
 }
+
+//Auxiliary functions
+function clearAddBookRow() {
+  bookToAdd.value = {
+    id: "",
+    title: "",
+    author: "",
+    published_at: "",
+    pages: "",
+  };
+}
+
+function clearSelectedBookRow() {
+  selectedBook.value = {
+    id: "",
+    title: "",
+    author: "",
+    published_at: "",
+    pages: "",
+  };
+}
+
+function clearUpdateBookRow() {
+  bookToUpdate.value = {
+    id: "",
+    title: "",
+    author: "",
+    published_at: "",
+    pages: "",
+  };
+}
+
+function fillBookToUpdate(book) {
+  bookToUpdate.value = {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    published_at: book.published_at.split("T")[0],
+    pages: book.pages,
+  };
+}
+
+function fillSelectedBook(book) {
+  selectedBook.value = {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    published_at: book.published_at.split("T")[0],
+    pages: book.pages,
+  };
+}
+
+function filterBooks() {
+  const query = booksSearchQuery.value.trim().toLowerCase();
+  const field = booksSearchField.value;
+
+  if (!query) {
+    filteredBooks.value = allBooks.value;
+    return;
+  }
+
+  filteredBooks.value = allBooks.value.filter((book) => {
+    const fieldValue = book[field]?.toString().toLowerCase() || "";
+    return fieldValue.startsWith(query);
+  });
+}
+
+function updateFindByTextInputPlaceholder() {
+  switch (booksSearchField.value) {
+    case "title":
+      findByTextInputPlaceholder.value = "Enter a title...";
+      break;
+    case "author":
+      findByTextInputPlaceholder.value = "Enter an author...";
+      break;
+  }
+}
+
+async function fillBooksTableAndValidations() {
+  const data = await GetBooks();
+  allBooks.value = data;
+  filteredBooks.value = allBooks.value;
+}
+
+//Vue.js functions
+onMounted(async () => {
+  try {
+    await fillBooksTableAndValidations();
+  } catch (err) {
+    console.error("Failed to load books:", err);
+  }
+});
+
+watch([booksSearchQuery, booksSearchField], () => {
+  filterBooks();
+});
 </script>
 
 <template>
@@ -104,7 +258,7 @@ function updateBookButton2OnClick() {
         id="find-by-select"
       >
         <option value="title">Title</option>
-        <option value="id">ID</option>
+        <option value="author">Author</option>
       </select>
       <button
         class="btn btn-lg btn-primary ms-4"
@@ -116,14 +270,19 @@ function updateBookButton2OnClick() {
 
     <div class="d-flex justify-content-center align-items-center gap-3">
       <div class="d-flex flex-column p-2 w-50 gap-2 bg-dark books-crud-divs">
-        <button class="w-100" @click="selectABookButtonOnClick()">
-          <div class="d-flex align-items-center gap-3">
-            <h3 class="mt-2 fw-bold fs-2">ID:</h3>
-            <label class="fs-2">{{ selectedBook.id }}</label>
-          </div>
-          <div class="d-flex align-items-center gap-3">
+        <button
+          v-for="(book, rowIndex) in filteredBooks"
+          :key="rowIndex"
+          class="btn btn-dark w-100 rounded border"
+          @click="selectABookButtonOnClick(rowIndex)"
+        >
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Title:</h3>
-            <label class="fs-2">{{ selectedBook.title }}</label>
+            <label class="fs-2 text-start lh-1">{{ book.title }}</label>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="mt-2 fw-bold fs-2">Author:</h3>
+            <label class="fs-2 text-start lh-1">{{ book.author }}</label>
           </div>
         </button>
       </div>
@@ -137,25 +296,40 @@ function updateBookButton2OnClick() {
         </div>
 
         <div v-if="isAddingANewBook" class="d-flex flex-column p-3">
-          <div class="d-flex align-items-center gap-3">
-            <h3 class="mt-2 fw-bold fs-2">ID:</h3>
-            <input v-model="bookToAdd.id" class="fs-4 w-100" />
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="mt-2 fw-bold fs-1">Title:</h3>
+            <input
+              v-model="bookToAdd.title"
+              class="fs-3 w-100"
+              maxlength="50"
+            />
           </div>
-          <div class="d-flex align-items-center gap-3">
-            <h3 class="mt-2 fw-bold fs-2">Title:</h3>
-            <input v-model="bookToAdd.title" class="fs-4 w-100" />
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="mt-2 fw-bold fs-1">Author:</h3>
+            <input
+              v-model="bookToAdd.author"
+              class="fs-3 w-100"
+              maxlength="50"
+            />
           </div>
-          <div class="d-flex align-items-center gap-3">
-            <h3 class="mt-2 fw-bold fs-2">Author:</h3>
-            <input v-model="bookToAdd.author" class="fs-4 w-100" />
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="mt-2 fw-bold fs-1 text-nowrap">Published at:</h3>
+            <input
+              v-model="bookToAdd.published_at"
+              class="fs-3 w-100"
+              type="date"
+            />
           </div>
-          <div class="d-flex align-items-center gap-3">
-            <h3 class="mt-2 fw-bold fs-2 text-nowrap">Published at:</h3>
-            <input v-model="bookToAdd.published_at" class="fs-4 w-100" />
-          </div>
-          <div class="d-flex align-items-center gap-3">
-            <h3 class="mt-2 fw-bold fs-2">Pages:</h3>
-            <input v-model="bookToAdd.pages" class="fs-4 w-100" />
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="mt-2 fw-bold fs-1">Pages:</h3>
+            <input
+              v-model="bookToAdd.pages"
+              class="fs-3 w-100"
+              type="number"
+              min="1"
+              max="10000"
+              maxlength="5"
+            />
           </div>
           <div
             class="d-flex justify-content-center align-items-center mt-3 gap-5"
@@ -176,23 +350,23 @@ function updateBookButton2OnClick() {
         </div>
 
         <div v-if="isSelectedABook" class="d-flex flex-column p-3">
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">ID:</h3>
             <label class="fs-2">{{ selectedBook.id }}</label>
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Title:</h3>
             <label class="fs-2">{{ selectedBook.title }}</label>
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Author:</h3>
             <label class="fs-2">{{ selectedBook.author }}</label>
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2 text-nowrap">Published at:</h3>
             <label class="fs-2">{{ selectedBook.published_at }}</label>
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Pages:</h3>
             <label class="fs-2">{{ selectedBook.pages }}</label>
           </div>
@@ -215,25 +389,44 @@ function updateBookButton2OnClick() {
         </div>
 
         <div v-if="isUpdatingABook" class="d-flex flex-column p-3">
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">ID:</h3>
-            <input v-model="bookToUpdate.id" class="fs-4 w-100" />
+            <label class="fs-2">{{ bookToUpdate.id }}</label>
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Title:</h3>
-            <input v-model="bookToUpdate.title" class="fs-4 w-100" />
+            <input
+              v-model="bookToUpdate.title"
+              class="fs-4 w-100"
+              maxlength="50"
+            />
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Author:</h3>
-            <input v-model="bookToUpdate.author" class="fs-4 w-100" />
+            <input
+              v-model="bookToUpdate.author"
+              class="fs-4 w-100"
+              maxlength="50"
+            />
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2 text-nowrap">Published at:</h3>
-            <input v-model="bookToUpdate.published_at" class="fs-4 w-100" />
+            <input
+              v-model="bookToUpdate.published_at"
+              class="fs-4 w-100"
+              type="date"
+            />
           </div>
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2">
             <h3 class="mt-2 fw-bold fs-2">Pages:</h3>
-            <input v-model="bookToUpdate.pages" class="fs-4 w-100" />
+            <input
+              v-model="bookToUpdate.pages"
+              class="fs-4 w-100"
+              type="number"
+              min="1"
+              max="10000"
+              maxlength="5"
+            />
           </div>
           <div
             class="d-flex justify-content-center align-items-center mt-3 gap-5"
