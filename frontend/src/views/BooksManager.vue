@@ -56,26 +56,30 @@ function cancelAddBookButtonOnClick() {
   nothingAboutBooksCRUDSelected.value = true;
 }
 
-function addBookButton2OnClick() {
+async function addBookButton2OnClick() {
   if (
-    bookToUpdate.value.title &&
-    bookToUpdate.value.author &&
-    bookToUpdate.value.published_at &&
-    bookToUpdate.value.pages > 0
+    bookToAdd.value.title &&
+    bookToAdd.value.author &&
+    bookToAdd.value.published_at &&
+    bookToAdd.value.pages > 0
   ) {
-    const birthDate = new Date(userToAdd.value.birth_date);
-    const birthDateISO = birthDate.toISOString();
+    const publishedAt = new Date(bookToAdd.value.published_at);
+    const publishedAtISO = publishedAt.toISOString();
 
-    await CreateUser({
-      ...userToAdd.value,
-      birth_date: birthDateISO,
+    await CreateBook({
+      title: bookToAdd.value.title,
+      author: bookToAdd.value.author,
+      published_at: publishedAtISO,
+      pages: bookToAdd.value.pages,
     });
 
-    isAddingANewUser.value = false;
-    clearAddUserRow();
-    await fillUsersTableAndValidations();
+    isAddingANewBook.value = false;
+    nothingAboutBooksCRUDSelected.value = true;
+    booksSearchQuery.value = "";
+    clearAddBookRow();
+    await fillBooksTableAndValidations();
 
-    Swal.fire("Success", "The user has been added successfully!", "success");
+    Swal.fire("Success", "The book has been added successfully!", "success");
   } else {
     Swal.fire("Error", "There are missing fields.", "error");
   }
@@ -129,6 +133,7 @@ async function updateBookButton2OnClick() {
 
     isUpdatingABook.value = false;
     nothingAboutBooksCRUDSelected.value = true;
+    booksSearchQuery.value = "";
     clearSelectedBookRow();
     clearUpdateBookRow();
     await fillBooksTableAndValidations();
@@ -277,11 +282,11 @@ watch([booksSearchQuery, booksSearchField], () => {
           @click="selectABookButtonOnClick(rowIndex)"
         >
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Title:</h3>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Title:</h3>
             <label class="fs-2 text-start lh-1">{{ book.title }}</label>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Author:</h3>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Author:</h3>
             <label class="fs-2 text-start lh-1">{{ book.author }}</label>
           </div>
         </button>
@@ -295,36 +300,36 @@ watch([booksSearchQuery, booksSearchField], () => {
           <h1 class="select-an-option-h1">Select an Option</h1>
         </div>
 
-        <div v-if="isAddingANewBook" class="d-flex flex-column p-3">
+        <div v-if="isAddingANewBook" class="d-flex flex-column p-3 gap-2">
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-1">Title:</h3>
+            <h3 class="mt-2 fw-bold fs-1 text-start lh-1">Title:</h3>
             <input
               v-model="bookToAdd.title"
-              class="fs-3 w-100"
+              class="fs-3 w-100 text-start lh-1"
               maxlength="50"
             />
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-1">Author:</h3>
+            <h3 class="mt-2 fw-bold fs-1 text-start lh-1">Author:</h3>
             <input
               v-model="bookToAdd.author"
-              class="fs-3 w-100"
+              class="fs-3 w-100 text-start lh-1"
               maxlength="50"
             />
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-1 text-nowrap">Published at:</h3>
+            <h3 class="mt-2 fw-bold fs-1 text-nowrap text-start lh-1">Published at:</h3>
             <input
               v-model="bookToAdd.published_at"
-              class="fs-3 w-100"
+              class="fs-3 w-100 text-start lh-1"
               type="date"
             />
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-1">Pages:</h3>
+            <h3 class="mt-2 fw-bold fs-1 text-start lh-1">Pages:</h3>
             <input
               v-model="bookToAdd.pages"
-              class="fs-3 w-100"
+              class="fs-3 w-100 text-start lh-1"
               type="number"
               min="1"
               max="10000"
@@ -349,26 +354,26 @@ watch([booksSearchQuery, booksSearchField], () => {
           </div>
         </div>
 
-        <div v-if="isSelectedABook" class="d-flex flex-column p-3">
+        <div v-if="isSelectedABook" class="d-flex flex-column p-3 gap-1">
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">ID:</h3>
-            <label class="fs-2">{{ selectedBook.id }}</label>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">ID:</h3>
+            <label class="fs-2 text-start lh-1">{{ selectedBook.id }}</label>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Title:</h3>
-            <label class="fs-2">{{ selectedBook.title }}</label>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Title:</h3>
+            <label class="fs-2 text-start lh-1">{{ selectedBook.title }}</label>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Author:</h3>
-            <label class="fs-2">{{ selectedBook.author }}</label>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Author:</h3>
+            <label class="fs-2 text-start lh-1">{{ selectedBook.author }}</label>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2 text-nowrap">Published at:</h3>
-            <label class="fs-2">{{ selectedBook.published_at }}</label>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1 text-nowrap">Published at:</h3>
+            <label class="fs-2 text-start lh-1">{{ selectedBook.published_at }}</label>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Pages:</h3>
-            <label class="fs-2">{{ selectedBook.pages }}</label>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Pages:</h3>
+            <label class="fs-2 text-start lh-1">{{ selectedBook.pages }}</label>
           </div>
           <div
             class="d-flex justify-content-center align-items-center mt-3 gap-5"
@@ -388,40 +393,40 @@ watch([booksSearchQuery, booksSearchField], () => {
           </div>
         </div>
 
-        <div v-if="isUpdatingABook" class="d-flex flex-column p-3">
+        <div v-if="isUpdatingABook" class="d-flex flex-column p-3 gap-1">
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">ID:</h3>
-            <label class="fs-2">{{ bookToUpdate.id }}</label>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">ID:</h3>
+            <label class="fs-2 text-start lh-1">{{ bookToUpdate.id }}</label>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Title:</h3>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Title:</h3>
             <input
               v-model="bookToUpdate.title"
-              class="fs-4 w-100"
+              class="fs-4 w-100 text-start lh-1"
               maxlength="50"
             />
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Author:</h3>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Author:</h3>
             <input
               v-model="bookToUpdate.author"
-              class="fs-4 w-100"
+              class="fs-4 w-100 text-start lh-1"
               maxlength="50"
             />
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2 text-nowrap">Published at:</h3>
+            <h3 class="mt-2 fw-bold fs-2 text-nowrap text-start lh-1">Published at:</h3>
             <input
               v-model="bookToUpdate.published_at"
-              class="fs-4 w-100"
+              class="fs-4 w-100 text-start lh-1"
               type="date"
             />
           </div>
           <div class="d-flex align-items-center gap-2">
-            <h3 class="mt-2 fw-bold fs-2">Pages:</h3>
+            <h3 class="mt-2 fw-bold fs-2 text-start lh-1">Pages:</h3>
             <input
               v-model="bookToUpdate.pages"
-              class="fs-4 w-100"
+              class="fs-4 w-100 text-start lh-1"
               type="number"
               min="1"
               max="10000"
