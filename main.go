@@ -36,6 +36,7 @@ func main() {
 			app.UserService,
 		},
 		OnStartup: func(ctx context.Context) {
+			app.Startup(ctx)
 			runtime.WindowMaximise(ctx)
 		},
 	})

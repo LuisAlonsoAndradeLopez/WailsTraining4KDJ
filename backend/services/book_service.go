@@ -20,6 +20,7 @@ func NewBookService() *BookService {
 	if err != nil {
 		panic(err)
 	}
+
 	return &BookService{
 		collection: database.Collection("Books"),
 	}

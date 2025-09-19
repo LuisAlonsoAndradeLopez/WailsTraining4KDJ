@@ -12,6 +12,8 @@ go get siteminds.dev/gosoap@latest
 go get github.com/go-resty/resty/v2
 go get go.mongodb.org/mongo-driver/mongo
 go get github.com/qiniu/qmgo
+go get gorm.io/driver/sqlite
+go get github.com/glebarez/sqlite
 ```
 
 En la carpeta "frontend"
