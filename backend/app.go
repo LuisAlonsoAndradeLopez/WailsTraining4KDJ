@@ -1,3 +1,5 @@
+//Fix the services, repositories, and app.go
+
 package backend
 
 import (
@@ -6,6 +8,7 @@ import (
 	"os"
 
 	"wailstraining4kdj/backend/db"
+	"wailstraining4kdj/backend/repositories"
 	"wailstraining4kdj/backend/services"
 )
 
@@ -24,15 +27,23 @@ func NewApp() *App {
 	//	panic(err)
 	//}
 
-	sqlite_database, err := db.InitDB()
+	sqlite_database, err := db.InitSQLiteDB()
 	if err != nil {
 		fmt.Println("Failed to initialize database:", err)
 		os.Exit(1)
 	}
 
+	mongoDB, err := db.ConnectMongoDBDB()
+	if err != nil {
+		fmt.Println("Failed to connect MongoDB:", err)
+		os.Exit(1)
+	}
+
+	bookRepo := repositories.NewMongoBookRepository(mongoDB)
+
 	return &App{
 
-		BookService: services.NewBookService(),
+		BookService: services.NewBookService(bookRepo),
 		RestService: services.NewRestService(),
 		SoapService: services.NewSoapService(
 			"https://www.dataaccess.com/webservicesserver/numberconversion.wso?WSDL",

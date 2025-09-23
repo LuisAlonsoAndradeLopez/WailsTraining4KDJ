@@ -2,65 +2,43 @@ package services
 
 import (
 	"context"
-
-	"github.com/qiniu/qmgo"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
-	"wailstraining4kdj/backend/db"
 	"wailstraining4kdj/backend/models"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
+type BookRepository interface {
+	CreateBook(ctx context.Context, book *models.Book) error
+	GetBooks(ctx context.Context) ([]models.Book, error)
+	GetBookByID(ctx context.Context, id string) (*models.Book, error)
+	UpdateBook(ctx context.Context, id string, update bson.M) error
+	DeleteBook(ctx context.Context, id string) error
+}
+
 type BookService struct {
-	collection *qmgo.Collection
+	repo BookRepository
 }
 
-func NewBookService() *BookService {
-	_, database, err := db.ConnectMongoDBDB()
-	if err != nil {
-		panic(err)
-	}
-
-	return &BookService{
-		collection: database.Collection("Books"),
-	}
+func NewBookService(repo BookRepository) *BookService {
+	return &BookService{repo: repo}
 }
 
-func (s *BookService) CreateBook(book *models.Book) error {
-	book.ID = primitive.NewObjectID()
-
-	_, err := s.collection.InsertOne(context.Background(), book)
-	return err
+func (s *BookService) CreateBook(ctx context.Context, book *models.Book) error {
+	return s.repo.CreateBook(ctx, book)
 }
 
-func (s *BookService) GetBooks() ([]models.Book, error) {
-	var books []models.Book
-	err := s.collection.Find(context.Background(), bson.M{}).All(&books)
-	return books, err
+func (s *BookService) GetBooks(ctx context.Context) ([]models.Book, error) {
+	return s.repo.GetBooks(ctx)
 }
 
-func (s *BookService) GetBookByID(id string) (*models.Book, error) {
-	oid, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return nil, err
-	}
-	var book models.Book
-	err = s.collection.Find(context.Background(), bson.M{"_id": oid}).One(&book)
-	return &book, err
+func (s *BookService) GetBookByID(ctx context.Context, id string) (*models.Book, error) {
+	return s.repo.GetBookByID(ctx, id)
 }
 
-func (s *BookService) UpdateBook(id string, update bson.M) error {
-	oid, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return err
-	}
-	return s.collection.UpdateId(context.Background(), oid, bson.M{"$set": update})
+func (s *BookService) UpdateBook(ctx context.Context, id string, update map[string]interface{}) error {
+	return s.repo.UpdateBook(ctx, id, update)
 }
 
-func (s *BookService) DeleteBook(id string) error {
-	oid, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return err
-	}
-	return s.collection.RemoveId(context.Background(), oid)
+func (s *BookService) DeleteBook(ctx context.Context, id string) error {
+	return s.repo.DeleteBook(ctx, id)
 }

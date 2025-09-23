@@ -9,7 +9,7 @@ import (
 	"github.com/qiniu/qmgo"
 )
 
-func ConnectMongoDBDB() (*qmgo.Client, *qmgo.Database, error) {
+func ConnectMongoDBDB() (*qmgo.Database, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -18,11 +18,11 @@ func ConnectMongoDBDB() (*qmgo.Client, *qmgo.Database, error) {
 		Database: "WailsTraining4KDJ",
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
+		return nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
 	}
 
 	db := client.Database("WailsTraining4KDJ")
 	log.Println("Connected to MongoDB successfully!")
 
-	return client, db, nil
+	return db, nil
 }

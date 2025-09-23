@@ -14,6 +14,8 @@ go get go.mongodb.org/mongo-driver/mongo
 go get github.com/qiniu/qmgo
 go get gorm.io/driver/sqlite
 go get github.com/glebarez/sqlite
+go get github.com/boonsuen/objectdb
+go get go.etcd.io/bbolt@latest
 ```
 
 En la carpeta "frontend"
