@@ -23,22 +23,22 @@ func NewBookService(repo BookRepository) *BookService {
 	return &BookService{repo: repo}
 }
 
-func (s *BookService) CreateBook(ctx context.Context, book *models.Book) error {
-	return s.repo.CreateBook(ctx, book)
+func (s *BookService) CreateBook(book *models.Book) error {
+	return s.repo.CreateBook(context.Background(), book)
 }
 
-func (s *BookService) GetBooks(ctx context.Context) ([]models.Book, error) {
-	return s.repo.GetBooks(ctx)
+func (s *BookService) GetBooks() ([]models.Book, error) {
+	return s.repo.GetBooks(context.Background())
 }
 
-func (s *BookService) GetBookByID(ctx context.Context, id string) (*models.Book, error) {
-	return s.repo.GetBookByID(ctx, id)
+func (s *BookService) GetBookByID(id string) (*models.Book, error) {
+	return s.repo.GetBookByID(context.Background(), id)
 }
 
-func (s *BookService) UpdateBook(ctx context.Context, id string, update map[string]interface{}) error {
-	return s.repo.UpdateBook(ctx, id, update)
+func (s *BookService) UpdateBook(id string, update bson.M) error {
+	return s.repo.UpdateBook(context.Background(), id, update)
 }
 
-func (s *BookService) DeleteBook(ctx context.Context, id string) error {
-	return s.repo.DeleteBook(ctx, id)
+func (s *BookService) DeleteBook(id string) error {
+	return s.repo.DeleteBook(context.Background(), id)
 }

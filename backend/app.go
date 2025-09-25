@@ -1,5 +1,3 @@
-//Fix the services, repositories, and app.go
-
 package backend
 
 import (
@@ -22,33 +20,44 @@ type App struct {
 }
 
 func NewApp() *App {
-	//mysql_database, err := db.ConnectMySQLDB()
+	//Change the commented code and comment depending which database you wanna use
+
+	//mysqlDatabase, err := db.ConnectMySQLDB()
 	//if err != nil {
 	//	panic(err)
 	//}
 
-	sqlite_database, err := db.InitSQLiteDB()
+	sqliteDatabase, err := db.InitSQLiteDB()
 	if err != nil {
 		fmt.Println("Failed to initialize database:", err)
 		os.Exit(1)
 	}
 
-	mongoDB, err := db.ConnectMongoDBDB()
+	//mongodbDatabase, err := db.ConnectMongoDBDB()
+	//if err != nil {
+	//	fmt.Println("Failed to connect MongoDB:", err)
+	//	os.Exit(1)
+	//}
+
+	bboltDatabase, err := db.InitBboltDB()
 	if err != nil {
-		fmt.Println("Failed to connect MongoDB:", err)
+		fmt.Println("Failed to initialize Bbolt DB:", err)
 		os.Exit(1)
 	}
 
-	bookRepo := repositories.NewMongoBookRepository(mongoDB)
+	//bookRepoWithMongodb := repositories.NewMongoBookRepository(mongodbDatabase)
+	bookRepoWithBbolt := repositories.NewBboltBookRepository(bboltDatabase)
 
 	return &App{
 
-		BookService: services.NewBookService(bookRepo),
+		//BookService: services.NewBookService(bookRepoWithMongodb),
+		BookService: services.NewBookService(bookRepoWithBbolt),
 		RestService: services.NewRestService(),
 		SoapService: services.NewSoapService(
 			"https://www.dataaccess.com/webservicesserver/numberconversion.wso?WSDL",
 		),
-		UserService: services.NewUserService(sqlite_database),
+		//UserService: services.NewUserService(mysqlDatabase),
+		UserService: services.NewUserService(sqliteDatabase),
 	}
 }
 
