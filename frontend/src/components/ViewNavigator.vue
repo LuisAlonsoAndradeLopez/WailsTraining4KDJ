@@ -20,26 +20,33 @@ function goToUsersManager() {
 function goToBooksManager() {
   changeView("BooksManager");
 }
+
+function goToFilesDownloader() {
+  changeView("FilesDownloader");
+}
 </script>
 
 <template>
   <div
-    class="d-flex flex-row justify-content-center align-items-center gap-5 py-3 bg-dark"
+    class="d-flex flex-row justify-content-center align-items-center gap-4 py-3 bg-dark"
   >
-    <button class="btn btn-dark btn-lg border" @click="goToMainMenu">
+    <button class="btn btn-dark btn-md border" @click="goToMainMenu">
       Go to Main Menu
     </button>
-    <button class="btn btn-dark btn-lg border" @click="goToUsersManager">
+    <button class="btn btn-dark btn-md border" @click="goToUsersManager">
       Go to Users Manager
     </button>
-    <button class="btn btn-dark btn-lg border" @click="goToSOAPApiTester">
+    <button class="btn btn-dark btn-md border" @click="goToSOAPApiTester">
       Go to SOAP Api Tester
     </button>
-    <button class="btn btn-dark btn-lg border" @click="goToRESTApiTester">
+    <button class="btn btn-dark btn-md border" @click="goToRESTApiTester">
       Go to REST Api Tester
     </button>
-    <button class="btn btn-dark btn-lg border" @click="goToBooksManager">
+    <button class="btn btn-dark btn-md border" @click="goToBooksManager">
       Go to Books Manager
+    </button>
+    <button class="btn btn-dark btn-md border" @click="goToFilesDownloader">
+      Go to Files Downloader
     </button>
   </div>
 </template>
