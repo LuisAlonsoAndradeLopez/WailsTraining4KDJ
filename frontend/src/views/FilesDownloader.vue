@@ -3,6 +3,14 @@ import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
 
+import { SelectDownloadsDirectory } from "../../wailsjs/go/backend/App";
+
+const findByTextInputPlaceholder = ref("Enter a file type...");
+
+const filesSearchQuery = ref("");
+const filesSearchField = ref("file-type");
+const downloadingPath = ref("Select the downloading path...");
+
 //Buttons onclick functions
 function downloadAllFilesButtonOnClick() {}
 
@@ -12,7 +20,10 @@ function pauseAllFilesDownloadingButtonOnClick() {}
 
 function cancelAllFilesDownloadingButtonOnClick() {}
 
-function changeDownloadingPathButtonOnClick() {}
+async function changeDownloadingPathButtonOnClick() {
+  const result = await SelectDownloadsDirectory();
+  downloadingPath.value = result;
+}
 
 function downloadFileButtonOnClick() {}
 
@@ -21,6 +32,24 @@ function resumeFileDownloadingButtonOnClick() {}
 function pauseFileDownloadingButtonOnClick() {}
 
 function cancelFileDownloadingButtonOnClick() {}
+
+//Auxiliary funcions
+function updateFindByTextInputPlaceholder() {
+  switch (filesSearchField.value) {
+    case "file-type":
+      findByTextInputPlaceholder.value = "Enter a file type...";
+      break;
+    case "file-extension":
+      findByTextInputPlaceholder.value = "Enter a file extension...";
+      break;
+    case "size":
+      findByTextInputPlaceholder.value = "Enter a size...";
+      break;
+  }
+}
+
+//Vue.js functions
+onMounted(() => {});
 </script>
 
 <template>
@@ -34,36 +63,41 @@ function cancelFileDownloadingButtonOnClick() {}
       <div
         class="d-flex flex-column justify-content-center align-items-center w-75 gap-2"
       >
-        <div class="d-flex justify-content-center align-items-center w-100 gap-2">
+        <div
+          class="d-flex justify-content-center align-items-center w-100 gap-2"
+        >
           <h3 class="mt-1">Find by:</h3>
           <input
             type="text"
-            v-model="usersSearchQuery"
-            class="form-control form-control-md w-50"
+            v-model="filesSearchQuery"
+            class="form-control form-control-md files-search-input"
             id="find-by-text-input"
             :placeholder="findByTextInputPlaceholder"
           />
           <select
-            v-model="usersSearchField"
+            v-model="filesSearchField"
             @change="updateFindByTextInputPlaceholder"
-            class="form-select w-25"
+            class="form-select files-search-select"
             id="find-by-select"
           >
-            <option value="name">Name</option>
-            <option value="id">ID</option>
+            <option value="file-type">File Type</option>
+            <option value="file-extension">File Extension</option>
+            <option value="size">Size</option>
           </select>
         </div>
 
         <div
-          class="d-flex justify-content-center align-items-center w-100 gap-3"
+          class="d-flex justify-content-center align-items-center w-100 gap-2"
         >
-          <h3 class="mt-1 fs-4">Download path:</h3>
           <div
-            class="d-flex align-items-center fs-4 bg-dark text-white px-2 path-div"
+            class="d-flex align-items-center fs-3 bg-dark text-white px-2 overflow-auto text-nowrap path-div"
           >
-            royer Dunkan g
+            {{ downloadingPath }}
           </div>
-          <button class="btn btn-md btn-secondary fs-6">
+          <button
+            class="btn btn-md btn-secondary fs-6"
+            @click="changeDownloadingPathButtonOnClick()"
+          >
             Change download path
           </button>
         </div>
@@ -74,13 +108,13 @@ function cancelFileDownloadingButtonOnClick() {}
       >
         <div class="d-flex justify-content-center align-items-center gap-2">
           <button
-            class="btn btn-sm btn-secondary fs-8"
+            class="btn btn-sm btn-secondary fs-7"
             @click="downloadAllFilesButtonOnClick()"
           >
             Download all files
           </button>
           <button
-            class="btn btn-sm btn-secondary fs-8"
+            class="btn btn-sm btn-secondary fs-7"
             @click="resumeAllFilesDownloadingButtonOnClick()"
           >
             Resume all files downloading
@@ -88,13 +122,13 @@ function cancelFileDownloadingButtonOnClick() {}
         </div>
         <div class="d-flex justify-content-center align-items-center gap-2">
           <button
-            class="btn btn-sm btn-secondary fs-8"
+            class="btn btn-sm btn-secondary fs-7"
             @click="pauseAllFilesDownloadingButtonOnClick()"
           >
             Pause all files downloading
           </button>
           <button
-            class="btn btn-sm btn-secondary fs-8"
+            class="btn btn-sm btn-secondary fs-7"
             @click="cancelAllFilesDownloadingButtonOnClick()"
           >
             Cancel all files downloading
@@ -111,11 +145,11 @@ function cancelFileDownloadingButtonOnClick() {}
         <table class="w-100">
           <thead class="bg-dark text-white sticky-top">
             <tr>
-              <th class="px-3 fs-5" id="id-th">File Type</th>
-              <th class="px-3 fs-5" id="names-th">File Extension</th>
-              <th class="px-3 fs-5" id="surnames-th">Size</th>
-              <th class="px-3 fs-5" id="birthdates-th">Download Progress</th>
-              <th class="px-3 fs-5">Action</th>
+              <th class="px-3 fs-5" id="file-type-th">File Type</th>
+              <th class="px-3 fs-5" id="file-extension-th">File Extension</th>
+              <th class="px-3 fs-5" id="size-th">Size</th>
+              <th class="px-3 fs-5" id="download-progress-th">Download Progress</th>
+              <th class="px-3 fs-5">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -130,141 +164,27 @@ function cancelFileDownloadingButtonOnClick() {}
               <td>
                 <button
                   class="btn btn-md btn-secondary"
-                  @click="updateUserButtonOnClick(row)"
+                  @click="downloadFileButtonOnClick()"
                 >
-                  Update
-                </button>
-              </td>
-            </tr>
-
-            <tr v-if="isAddingANewUser">
-              <td class="px-2 py-2">
-                <label class="fs-5">{{ lastUserID }}</label>
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToAdd.name"
-                  type="text"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the name..."
-                  maxlength="30"
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToAdd.surnames"
-                  type="text"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the surnames..."
-                  maxlength="30"
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToAdd.birth_date"
-                  type="date"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the birthdate..."
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToAdd.phone_number"
-                  type="tel"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the phonenumber..."
-                  maxlength="15"
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToAdd.email"
-                  type="email"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the email..."
-                  maxlength="100"
-                />
-              </td>
-              <td
-                class="d-flex flex-column justify-content-center align-items-center px-2 py-2 gap-1"
-              >
-                <button
-                  @click="saveTheUserButtonOnClick"
-                  class="btn btn-success text-white px-2 py-1 rounded mr-2"
-                >
-                  Save the User
+                  Download File
                 </button>
                 <button
-                  @click="cancelAddingUserButtonOnClick"
-                  class="btn btn-danger text-white px-2 py-1 rounded"
+                  class="btn btn-md btn-secondary"
+                  @click="pauseFileDownloadingButtonOnClick()"
                 >
-                  Cancel
-                </button>
-              </td>
-            </tr>
-
-            <tr v-if="isUpdatingAUser">
-              <td class="px-2 py-2">
-                <label class="fs-5">{{ userToUpdate.id }}</label>
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToUpdate.name"
-                  type="text"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the name..."
-                  maxlength="30"
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToUpdate.surnames"
-                  type="text"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the surnames..."
-                  maxlength="30"
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToUpdate.birth_date"
-                  type="date"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the birthdate..."
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToUpdate.phone_number"
-                  type="tel"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the phonenumber..."
-                  maxlength="15"
-                />
-              </td>
-              <td class="px-2 py-2">
-                <input
-                  v-model="userToUpdate.email"
-                  type="email"
-                  class="rounded p-1 w-100"
-                  placeholder="Enter the email..."
-                  maxlength="100"
-                />
-              </td>
-              <td
-                class="d-flex flex-column justify-content-center align-items-center px-2 py-2 gap-1"
-              >
-                <button
-                  @click="updateTheUserButtonOnClick"
-                  class="btn btn-success text-white px-2 py-1 rounded mr-2"
-                >
-                  Update the User
+                  Pause File Downloading
                 </button>
                 <button
-                  @click="cancelUpdatingUserButtonOnClick"
-                  class="btn btn-danger text-white px-2 py-1 rounded"
+                  class="btn btn-md btn-secondary"
+                  @click="cancelFileDownloadingButtonOnClick()"
                 >
-                  Cancel
+                  Cancel File Downloading
+                </button>
+                <button
+                  class="btn btn-md btn-secondary"
+                  @click="resumeFileDownloadingButtonOnClick()"
+                >
+                  Resume File Downloading
                 </button>
               </td>
             </tr>
@@ -280,7 +200,15 @@ function cancelFileDownloadingButtonOnClick() {}
   height: 54vh;
 }
 
+.files-search-input {
+  width: 43.8%;
+}
+
+.files-search-select {
+  width: 43.8%;
+}
+
 .path-div {
-  width: 56%;
+  width: 100%;
 }
 </style>

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
 	"wailstraining4kdj/backend/db"
 	"wailstraining4kdj/backend/repositories"
 	"wailstraining4kdj/backend/services"
@@ -59,6 +61,16 @@ func NewApp() *App {
 		//UserService: services.NewUserService(mysqlDatabase),
 		UserService: services.NewUserService(sqliteDatabase),
 	}
+}
+
+func (a *App) SelectDownloadsDirectory() (string, error) {
+	selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Downloads Directory",
+	})
+	if err != nil {
+		return "", err
+	}
+	return selection, nil
 }
 
 func (a *App) Startup(ctx context.Context) {
