@@ -2,26 +2,120 @@
 import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
+
+//Buttons onclick functions
+function downloadAllFilesButtonOnClick() {}
+
+function resumeAllFilesDownloadingButtonOnClick() {}
+
+function pauseAllFilesDownloadingButtonOnClick() {}
+
+function cancelAllFilesDownloadingButtonOnClick() {}
+
+function changeDownloadingPathButtonOnClick() {}
+
+function downloadFileButtonOnClick() {}
+
+function resumeFileDownloadingButtonOnClick() {}
+
+function pauseFileDownloadingButtonOnClick() {}
+
+function cancelFileDownloadingButtonOnClick() {}
 </script>
 
 <template>
   <ViewNavigator />
   <div
-    class="d-flex flex-column justify-content-center align-items-center mt-3 py-2 gap-1 bg-dark"
+    class="d-flex flex-column justify-content-center align-items-center mt-3 p-3 gap-3 bg-dark"
   >
-    <h3 class="fw-bold fs-1">Files Downloader</h3>
     <div
-      class="d-flex flex-column justify-content-center align-items-center w-100 mx-3 p-2 bg-black"
+      class="d-flex justify-content-center align-items-center p-2 gap-2 w-100 bg-black"
     >
-      <div class="overflow-auto files-table-content-div">
+      <div
+        class="d-flex flex-column justify-content-center align-items-center w-75 gap-2"
+      >
+        <div class="d-flex justify-content-center align-items-center w-100 gap-2">
+          <h3 class="mt-1">Find by:</h3>
+          <input
+            type="text"
+            v-model="usersSearchQuery"
+            class="form-control form-control-md w-50"
+            id="find-by-text-input"
+            :placeholder="findByTextInputPlaceholder"
+          />
+          <select
+            v-model="usersSearchField"
+            @change="updateFindByTextInputPlaceholder"
+            class="form-select w-25"
+            id="find-by-select"
+          >
+            <option value="name">Name</option>
+            <option value="id">ID</option>
+          </select>
+        </div>
+
+        <div
+          class="d-flex justify-content-center align-items-center w-100 gap-3"
+        >
+          <h3 class="mt-1 fs-4">Download path:</h3>
+          <div
+            class="d-flex align-items-center fs-4 bg-dark text-white px-2 path-div"
+          >
+            royer Dunkan g
+          </div>
+          <button class="btn btn-md btn-secondary fs-6">
+            Change download path
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="d-flex flex-column justify-content-center align-items-center w-25 gap-2"
+      >
+        <div class="d-flex justify-content-center align-items-center gap-2">
+          <button
+            class="btn btn-sm btn-secondary fs-8"
+            @click="downloadAllFilesButtonOnClick()"
+          >
+            Download all files
+          </button>
+          <button
+            class="btn btn-sm btn-secondary fs-8"
+            @click="resumeAllFilesDownloadingButtonOnClick()"
+          >
+            Resume all files downloading
+          </button>
+        </div>
+        <div class="d-flex justify-content-center align-items-center gap-2">
+          <button
+            class="btn btn-sm btn-secondary fs-8"
+            @click="pauseAllFilesDownloadingButtonOnClick()"
+          >
+            Pause all files downloading
+          </button>
+          <button
+            class="btn btn-sm btn-secondary fs-8"
+            @click="cancelAllFilesDownloadingButtonOnClick()"
+          >
+            Cancel all files downloading
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="d-flex flex-column justify-content-center align-items-center w-100 mx-5 p-2 bg-black"
+    >
+      <div class="overflow-auto w-100 files-table-content-div">
+        <h3 class="fw-bold fs-4">Files Downloader</h3>
         <table class="w-100">
           <thead class="bg-dark text-white sticky-top">
             <tr>
-              <th class="px-3 fs-3" id="id-th">File Type</th>
-              <th class="px-3 fs-3" id="names-th">File Extension</th>
-              <th class="px-3 fs-3" id="surnames-th">Size</th>
-              <th class="px-3 fs-3" id="birthdates-th">Download Progress</th>
-              <th class="px-3 fs-3">Action</th>
+              <th class="px-3 fs-5" id="id-th">File Type</th>
+              <th class="px-3 fs-5" id="names-th">File Extension</th>
+              <th class="px-3 fs-5" id="surnames-th">Size</th>
+              <th class="px-3 fs-5" id="birthdates-th">Download Progress</th>
+              <th class="px-3 fs-5">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -177,21 +271,6 @@ import ViewNavigator from "../components/ViewNavigator.vue";
           </tbody>
         </table>
       </div>
-
-      <div
-        class="d-flex justify-content-center align-items-center w-100 mt-3 mx-3 p-2 gap-3 bg-dark"
-      >
-        <h3 class="mt-1">Download path:</h3>
-        <label
-          class="fs-1 py-3 w-50 bg-black text-white path-text-area"
-          readonly
-          disabled
-        >
-{{}}
-        </label>
-        <button class="btn btn-md btn-secondary">Change download path</button>
-        <button class="btn btn-md btn-secondary">Download all files</button>
-      </div>
     </div>
   </div>
 </template>
@@ -201,5 +280,7 @@ import ViewNavigator from "../components/ViewNavigator.vue";
   height: 54vh;
 }
 
-
+.path-div {
+  width: 56%;
+}
 </style>
