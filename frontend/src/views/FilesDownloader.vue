@@ -3,13 +3,14 @@ import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
 
-import { SelectDownloadsDirectory } from "../../wailsjs/go/backend/App";
+import { GetAllSampleFiles, SelectFilesDownloadsDirectory } from "../../wailsjs/go/services/FileDownloadingService";
 
 const findByTextInputPlaceholder = ref("Enter a file type...");
 
+const files = ref([]);
 const filesSearchQuery = ref("");
 const filesSearchField = ref("file-type");
-const downloadingPath = ref("Select the downloading path...");
+const downloadingPath = ref("Select a download path...");
 
 //Buttons onclick functions
 function downloadAllFilesButtonOnClick() {}
@@ -21,7 +22,7 @@ function pauseAllFilesDownloadingButtonOnClick() {}
 function cancelAllFilesDownloadingButtonOnClick() {}
 
 async function changeDownloadingPathButtonOnClick() {
-  const result = await SelectDownloadsDirectory();
+  const result = await SelectFilesDownloadsDirectory();
   downloadingPath.value = result;
 }
 
@@ -34,6 +35,11 @@ function pauseFileDownloadingButtonOnClick() {}
 function cancelFileDownloadingButtonOnClick() {}
 
 //Auxiliary funcions
+async function FillFilesTable() {
+  files.value = await GetAllSampleFiles();
+  console.log(await GetAllSampleFiles());
+}
+
 function updateFindByTextInputPlaceholder() {
   switch (filesSearchField.value) {
     case "file-type":
@@ -49,7 +55,13 @@ function updateFindByTextInputPlaceholder() {
 }
 
 //Vue.js functions
-onMounted(() => {});
+onMounted(async () => {
+  try {
+    await FillFilesTable();
+  } catch (err) {
+    console.error("Failed to load users:", err);
+  }
+});
 </script>
 
 <template>
@@ -89,6 +101,7 @@ onMounted(() => {});
         <div
           class="d-flex justify-content-center align-items-center w-100 gap-2"
         >
+          <h3 class="mt-1">Download Path:</h3>
           <div
             class="d-flex align-items-center fs-3 bg-dark text-white px-2 overflow-auto text-nowrap path-div"
           >
@@ -148,12 +161,14 @@ onMounted(() => {});
               <th class="px-3 fs-5" id="file-type-th">File Type</th>
               <th class="px-3 fs-5" id="file-extension-th">File Extension</th>
               <th class="px-3 fs-5" id="size-th">Size</th>
-              <th class="px-3 fs-5" id="download-progress-th">Download Progress</th>
+              <th class="px-3 fs-5" id="download-progress-th">
+                Download Progress
+              </th>
               <th class="px-3 fs-5">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
+            <tr v-for="(row, rowIndex) in files" :key="rowIndex">
               <td
                 v-for="(value, colIndex) in row"
                 :key="'cell-' + rowIndex + '-' + colIndex"
@@ -191,7 +206,7 @@ onMounted(() => {});
           </tbody>
         </table>
       </div>
-    </div>
+    </div>  
   </div>
 </template>
 
@@ -209,6 +224,6 @@ onMounted(() => {});
 }
 
 .path-div {
-  width: 100%;
+  width: 56%;
 }
 </style>

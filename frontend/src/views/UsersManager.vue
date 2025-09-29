@@ -8,7 +8,7 @@ import { CreateUser, GetAllUsers, UpdateUser } from "../../wailsjs/go/services/U
 const findByTextInputPlaceholder = ref("Enter a name...");
 
 //constants for handle the users table
-const rows = ref([]);
+const filteredUsers = ref([]);
 const users = ref([]);
 const usersSearchQuery = ref("");
 const usersSearchField = ref("name");
@@ -139,11 +139,11 @@ function filterUsers() {
   const field = usersSearchField.value;
 
   if (!query) {
-    rows.value = users.value.map(mapUserToRow);
+    filteredUsers.value = users.value.map(mapUserToRow);
     return;
   }
 
-  rows.value = users.value
+  filteredUsers.value = users.value
     .filter((user) => {
       const fieldValue = user[field]?.toString().toLowerCase() || "";
       return fieldValue.startsWith(query);
@@ -186,7 +186,7 @@ async function fillUsersTableAndValidations() {
     lastUserID.value = 1;
   }
 
-  rows.value = users.value.map(mapUserToRow);
+  filteredUsers.value = users.value.map(mapUserToRow);
 }
 
 //Vue.js functions
@@ -248,7 +248,7 @@ watch([usersSearchQuery, usersSearchField], () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
+          <tr v-for="(row, rowIndex) in filteredUsers" :key="rowIndex">
             <td
               v-for="(value, colIndex) in row"
               :key="'cell-' + rowIndex + '-' + colIndex"

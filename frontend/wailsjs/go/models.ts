@@ -83,3 +83,26 @@ export namespace models {
 
 }
 
+export namespace services {
+	
+	export class SampleFile {
+	    fileType: string;
+	    extension: string;
+	    size: string;
+	    downloadUrl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SampleFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fileType = source["fileType"];
+	        this.extension = source["extension"];
+	        this.size = source["size"];
+	        this.downloadUrl = source["downloadUrl"];
+	    }
+	}
+
+}
+

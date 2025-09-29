@@ -6,6 +6,7 @@ Para poder arrancar este sistema primero tienes que ejecutar estos comandos:
 
 En la carpeta raíz:
 ```bash
+go get github.com/wailsapp/wails/v2@v2.10.2
 go get gorm.io/gorm@v1.30.2
 go get gorm.io/driver/mysql@v1.6.0
 go get siteminds.dev/gosoap@latest
@@ -15,6 +16,7 @@ go get github.com/qiniu/qmgo
 go get gorm.io/driver/sqlite
 go get github.com/glebarez/sqlite
 go get go.etcd.io/bbolt@latest
+go get github.com/PuerkitoBio/goquery
 ```
 
 En la carpeta "frontend"
