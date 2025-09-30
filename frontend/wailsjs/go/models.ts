@@ -87,7 +87,6 @@ export namespace services {
 	
 	export class SampleFile {
 	    fileType: string;
-	    extension: string;
 	    size: string;
 	    downloadUrl: string;
 	
@@ -98,7 +97,6 @@ export namespace services {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.fileType = source["fileType"];
-	        this.extension = source["extension"];
 	        this.size = source["size"];
 	        this.downloadUrl = source["downloadUrl"];
 	    }
