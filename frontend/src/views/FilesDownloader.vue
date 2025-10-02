@@ -6,6 +6,15 @@ import ViewNavigator from "../components/ViewNavigator.vue";
 import {
   GetAllSampleFiles,
   SelectFilesDownloadsDirectory,
+  StartAllDownloads,
+  PauseAllDownloads,
+  ResumeAllDownloads,
+  CancelAllDownloads,
+  GetSampleFilesStatus,
+  StartDownload,
+  PauseDownload,
+  ResumeDownload,
+  CancelDownload,
 } from "../../wailsjs/go/services/FileDownloadingService";
 
 const files = ref([]);
@@ -19,25 +28,33 @@ const downloadingPath = ref("Select a download path...");
 const theFilesAreFetching = ref(false);
 
 //Buttons onclick functions
-function downloadAllFilesButtonOnClick() {
+async function downloadAllFilesButtonOnClick() {
+  const urls = files.value.map((f) => f.DownloadURL);
+  await StartAllDownloads(urls); // backend schedules them
+  startPollingSampleFileStatus();
+
   files.value.forEach((file) => {
     file.downloadState = "downloading";
+    file.progress = 0;
   });
 }
 
-function resumeAllFilesDownloadingButtonOnClick() {
+async function pauseAllFilesDownloadingButtonOnClick() {
+  await PauseAllDownloads(); // backend pauses
   files.value.forEach((file) => {
-    file.downloadState = "downloading";
+    if (file.downloadState === "downloading") file.downloadState = "paused";
   });
 }
 
-function pauseAllFilesDownloadingButtonOnClick() {
+async function resumeAllFilesDownloadingButtonOnClick() {
+  await ResumeAllDownloads();
   files.value.forEach((file) => {
-    file.downloadState = "paused";
+    if (file.downloadState === "paused") file.downloadState = "downloading";
   });
 }
 
-function cancelAllFilesDownloadingButtonOnClick() {
+async function cancelAllFilesDownloadingButtonOnClick() {
+  await CancelAllDownloads();
   files.value.forEach((file) => {
     file.downloadState = "idle";
     file.progress = 0;
@@ -49,20 +66,26 @@ async function changeDownloadingPathButtonOnClick() {
   downloadingPath.value = result;
 }
 
-function downloadFileButtonOnClick(row) {
+async function downloadFileButtonOnClick(row) {
   row.downloadState = "downloading";
+  await StartDownload(row.DownloadURL); // schedules this URL individually
+  startPollingSampleFileStatus();
 }
 
-function resumeFileDownloadingButtonOnClick(row) {
-  row.downloadState = "downloading";
-}
-
-function pauseFileDownloadingButtonOnClick(row) {
+async function pauseFileDownloadingButtonOnClick(row) {
+  await PauseDownload(row.id);
   row.downloadState = "paused";
 }
 
-function cancelFileDownloadingButtonOnClick(row) {
+async function resumeFileDownloadingButtonOnClick(row) {
+  await ResumeDownload(row.id);
+  row.downloadState = "downloading";
+}
+
+async function cancelFileDownloadingButtonOnClick(row) {
+  await CancelDownload(row.id);
   row.downloadState = "idle";
+  row.progress = 0;
 }
 
 //Auxiliary funcions
@@ -75,6 +98,7 @@ async function fillFilesTable() {
       ...file,
       downloadState: "idle", // idle | downloading | paused
       progress: 0,
+      id: f.DownloadURL,
     }));
 
     filteredFiles.value = files.value;
@@ -98,6 +122,43 @@ function filterFiles() {
     const fieldValue = file[field]?.toString().toLowerCase() || "";
     return fieldValue.startsWith(query);
   });
+}
+
+let pollHandle = null;
+function startPollingSampleFileStatus() {
+  if (pollHandle) return;
+  pollHandle = setInterval(async () => {
+    try {
+      const statuses = await GetSampleFilesStatus();
+      // update local files
+      statuses.forEach((st) => {
+        const file = files.value.find(
+          (f) => f.id === st.ID || f.DownloadURL === st.URL
+        );
+        if (file) {
+          file.progress = st.Progress;
+          file.downloadState = st.State;
+          if (st.State === "completed") {
+            file.progress = 100;
+          }
+          if (st.State === "error") {
+            file.downloadState = "idle";
+            // optionally show error somewhere
+          }
+        }
+      });
+      // stop polling when none are active
+      const anyActive = files.value.some((f) =>
+        ["downloading", "paused", "queued"].includes(f.downloadState)
+      );
+      if (!anyActive) {
+        clearInterval(pollHandle);
+        pollHandle = null;
+      }
+    } catch (err) {
+      console.error("poll error", err);
+    }
+  }, 300);
 }
 
 function updateFindByTextInputPlaceholder() {
@@ -224,85 +285,94 @@ watch([filesSearchQuery, filesSearchField], () => {
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
-      <div v-else class="overflow-auto w-100">
+      <div
+        v-else
+        class="d-flex flex-column justify-content-start align-items-center w-100"
+      >
         <h3 class="fw-bold fs-4">Files Downloader</h3>
-        <table class="w-100">
-          <thead class="bg-dark text-white sticky-top">
-            <tr>
-              <th class="px-3 fs-5" id="file-type-th">File Type</th>
-              <th class="px-3 fs-5" id="size-th">Size</th>
-              <th class="px-3 fs-5" id="download-progress-th">
-                Download Progress
-              </th>
-              <th class="px-3 fs-5">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(file, index) in filteredFiles" :key="index" class="p-2">
-              <td class="px-3 py-2 file-type-td">
-                <label class="fs-5">{{ file.fileType }}</label>
-              </td>
-
-              <td class="px-3 py-2 file-size-td">
-                <label class="fs-5">{{ file.size }}</label>
-              </td>
-
-              <td class="px-3 py-2 file-download-progress-td">
-                <div class="progress" style="height: 35px">
-                  <div
-                    class="progress-bar progress-bar-striped"
-                    role="progressbar"
-                    :style="{ width: file.progress + '%' }"
-                    :aria-valuenow="file.progress"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                  >
-                    {{ file.progress }}%
-                  </div>
-                </div>
-              </td>
-
-              <td
-                class="d-flex flex-column justify-content-center align-items-center gap-1"
+        <div class="overflow-auto w-100 files-table-div">
+          <table class="table w-100">
+            <thead class="bg-dark text-white sticky-top">
+              <tr>
+                <th class="px-3 fs-5" id="file-type-th">File Type</th>
+                <th class="px-3 fs-5" id="size-th">Size</th>
+                <th class="px-3 fs-5" id="download-progress-th">
+                  Download Progress
+                </th>
+                <th class="px-3 fs-5">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(file, index) in filteredFiles"
+                :key="index"
+                class="p-2"
               >
-                <button
-                  v-if="file.downloadState === 'idle'"
-                  class="btn btn-lg btn-secondary"
-                  @click="downloadFileButtonOnClick(file)"
-                >
-                  Download File
-                </button>
+                <td class="px-3 py-2 file-type-td">
+                  <label class="fs-5">{{ file.fileType }}</label>
+                </td>
 
-                <button
-                  v-if="file.downloadState === 'downloading'"
-                  class="btn btn-md btn-secondary"
-                  @click="pauseFileDownloadingButtonOnClick(file)"
-                >
-                  Pause File Downloading
-                </button>
+                <td class="px-3 py-2 file-size-td">
+                  <label class="fs-5">{{ file.size }}</label>
+                </td>
 
-                <button
-                  v-if="file.downloadState === 'paused'"
-                  class="btn btn-md btn-secondary"
-                  @click="resumeFileDownloadingButtonOnClick(file)"
-                >
-                  Resume File Downloading
-                </button>
+                <td class="px-3 py-2 file-download-progress-td">
+                  <div class="progress" style="height: 35px">
+                    <div
+                      class="progress-bar progress-bar-striped"
+                      role="progressbar"
+                      :style="{ width: file.progress + '%' }"
+                      :aria-valuenow="file.progress"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                    >
+                      {{ file.progress }}%
+                    </div>
+                  </div>
+                </td>
 
-                <button
-                  v-if="
-                    file.downloadState === 'downloading' ||
-                    file.downloadState === 'paused'
-                  "
-                  class="btn btn-md btn-secondary"
-                  @click="cancelFileDownloadingButtonOnClick(file)"
+                <td
+                  class="d-flex flex-column justify-content-center align-items-center gap-1"
                 >
-                  Cancel File Downloading
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                  <button
+                    v-if="file.downloadState === 'idle'"
+                    class="btn btn-lg btn-secondary"
+                    @click="downloadFileButtonOnClick(file)"
+                  >
+                    Download File
+                  </button>
+
+                  <button
+                    v-if="file.downloadState === 'downloading'"
+                    class="btn btn-md btn-secondary"
+                    @click="pauseFileDownloadingButtonOnClick(file)"
+                  >
+                    Pause File Downloading
+                  </button>
+
+                  <button
+                    v-if="file.downloadState === 'paused'"
+                    class="btn btn-md btn-secondary"
+                    @click="resumeFileDownloadingButtonOnClick(file)"
+                  >
+                    Resume File Downloading
+                  </button>
+
+                  <button
+                    v-if="
+                      file.downloadState === 'downloading' ||
+                      file.downloadState === 'paused'
+                    "
+                    class="btn btn-md btn-secondary"
+                    @click="cancelFileDownloadingButtonOnClick(file)"
+                  >
+                    Cancel File Downloading
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -328,6 +398,10 @@ watch([filesSearchQuery, filesSearchField], () => {
 
 .files-table-module-div {
   height: 57vh;
+}
+
+.files-table-div {
+  height: 50vh;
 }
 
 .files-search-input {
