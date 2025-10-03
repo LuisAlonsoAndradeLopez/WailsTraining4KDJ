@@ -3,8 +3,24 @@
 import {services} from '../models';
 import {context} from '../models';
 
-export function GetAllSampleFiles():Promise<Array<services.SampleFile>>;
+export function CancelAllDownloads():Promise<void>;
+
+export function CancelDownload(arg1:string):Promise<void>;
+
+export function FetchSampleFilesInformation():Promise<Array<services.SampleFile>>;
+
+export function GetSampleFilesStatus():Promise<Array<services.SampleFile>>;
+
+export function PauseAllDownloads():Promise<void>;
+
+export function PauseDownload(arg1:string):Promise<void>;
+
+export function ResumeAllDownloads():Promise<void>;
+
+export function ResumeDownload(arg1:string):Promise<void>;
 
 export function SelectFilesDownloadsDirectory():Promise<string>;
 
 export function SetContext(arg1:context.Context):Promise<void>;
+
+export function StartAllDownloads(arg1:Array<string>):Promise<void>;

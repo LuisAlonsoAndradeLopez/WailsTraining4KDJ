@@ -4,14 +4,14 @@ import { onMounted, ref, watch } from "vue";
 import ViewNavigator from "../components/ViewNavigator.vue";
 
 import {
-  GetAllSampleFiles,
+  FetchSampleFilesInformation,
   SelectFilesDownloadsDirectory,
   StartAllDownloads,
   PauseAllDownloads,
   ResumeAllDownloads,
   CancelAllDownloads,
   GetSampleFilesStatus,
-  StartDownload,
+  //StartDownload,
   PauseDownload,
   ResumeDownload,
   CancelDownload,
@@ -92,13 +92,13 @@ async function cancelFileDownloadingButtonOnClick(row) {
 async function fillFilesTable() {
   theFilesAreFetching.value = true;
   try {
-    const result = await GetAllSampleFiles();
+    const result = await FetchSampleFilesInformation();
 
     files.value = result.map((file) => ({
       ...file,
       downloadState: "idle", // idle | downloading | paused
       progress: 0,
-      id: f.DownloadURL,
+      id: file.downloadUrl,
     }));
 
     filteredFiles.value = files.value;
@@ -313,9 +313,8 @@ watch([filesSearchQuery, filesSearchField], () => {
                 </td>
 
                 <td class="px-3 py-2 file-size-td">
-                  <label class="fs-5">{{ file.size }}</label>
+                  <label class="fs-5">{{ file.sizeInText }}</label>
                 </td>
-
                 <td class="px-3 py-2 file-download-progress-td">
                   <div class="progress" style="height: 35px">
                     <div

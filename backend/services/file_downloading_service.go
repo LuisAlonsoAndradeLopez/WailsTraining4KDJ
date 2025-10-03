@@ -1,4 +1,4 @@
-//Adjust structs for work fine
+//Create StartDownload method by my own
 
 package services
 
@@ -21,9 +21,10 @@ import (
 )
 
 type SampleFile struct {
-	ID               string `json:"id"` // use download URL as ID or hashed value
+	ID               string `json:"id"` // the download URL is the ID
 	FileType         string `json:"fileType"`
-	Size             string `json:"size"`
+	SizeInText       string `json:"sizeInText"` // only for show the data in FileDownloader.vue files table, do not convert data to bytes with it because that is the prupose of SizeInBytes
+	SizeInBytes      int64  `json:"sizeInBytes"`
 	DownloadURL      string `json:"downloadUrl"`
 	Downloaded       int64  `json:"downloaded"`
 	DownloadProgress int    `json:"downloadProgress"` // 0-100
@@ -37,7 +38,7 @@ type FileDownloadingService struct {
 
 	// concurrency controls
 	maxWorkers int
-	sem        chan struct{} // buffered channel as semaphore
+	semaphore  chan struct{} // buffered channel as semaphore
 
 	// sampleFiles registry
 	sampleFiles          sync.Map
@@ -48,19 +49,20 @@ type FileDownloadingService struct {
 }
 
 type downloadSampleFile struct {
-	ID         string
-	URL        string
-	FileName   string
-	downloaded int64
-	size       string
+	ID          string
+	URL         string
+	FileName    string
+	downloaded  int64
+	sizeInText  string
+	sizeInBytes int64
 
 	// control
-	mu     sync.Mutex // protects paused/cancelled/downloaded/err
-	cond   *sync.Cond // cond for pause/resume
-	paused bool
-	cancel bool
-	err    error
-	state  string // same values as SampleFile.State
+	mutex     sync.Mutex // protects paused/cancelled/downloaded/err
+	condition *sync.Cond // condition for pause/resume
+	paused    bool
+	cancel    bool
+	err       error
+	state     string // same values as SampleFile.State
 
 	// runtime
 	filepath string
@@ -73,7 +75,7 @@ func NewFileDownloadingService() *FileDownloadingService {
 	s := &FileDownloadingService{
 		downloadDir: defaultDir,
 		maxWorkers:  6,                      // configurable concurrency
-		sem:         make(chan struct{}, 6), // buffered to maxWorkers
+		semaphore:   make(chan struct{}, 6), // buffered to maxWorkers
 	}
 	return s
 }
@@ -86,15 +88,15 @@ func (f *FileDownloadingService) SetContext(ctx context.Context) {
 
 // downloadWorker does the actual download and supports pause/resume/cancel
 func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile) {
-	sampleFile.mu.Lock()
+	sampleFile.mutex.Lock()
 	// if previously paused or cancelled, handle
 	if sampleFile.cancel {
 		sampleFile.state = "cancelled"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return
 	}
 	sampleFile.state = "downloading"
-	sampleFile.mu.Unlock()
+	sampleFile.mutex.Unlock()
 
 	// prepare file path
 	outPath := filepath.Join(fds.downloadDir, sampleFile.FileName)
@@ -111,10 +113,10 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 	// Create / open file for append
 	f, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.err = err
 		sampleFile.state = "error"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return
 	}
 	defer f.Close()
@@ -135,20 +137,20 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 	req.Header.Set("User-Agent", "WailsDownloader/1.0")
 	resp, err := client.Do(req)
 	if err != nil {
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.err = err
 		sampleFile.state = "error"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return
 	}
 	defer resp.Body.Close()
 
 	// If server gave Content-Length, compute total size
 	if resp.StatusCode >= 400 {
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.err = fmt.Errorf("status %d", resp.StatusCode)
 		sampleFile.state = "error"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return
 	}
 
@@ -157,9 +159,9 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 		n, _ := strconv.ParseInt(cl, 10, 64)
 		totalSize = n + startOffset // if resumed, add offset
 	}
-	sampleFile.mu.Lock()
-	sampleFile.size = totalSize
-	sampleFile.mu.Unlock()
+	sampleFile.mutex.Lock()
+	sampleFile.sizeInBytes = totalSize
+	sampleFile.mutex.Unlock()
 
 	// read loop with small buffer; check paused/cancel frequently
 	buf := make([]byte, 32*1024) // 32KB buffer
@@ -169,55 +171,55 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 readerLoop:
 	for {
 		// handle pause/cancel before each Read
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		for sampleFile.paused && !sampleFile.cancel {
 			sampleFile.state = "paused"
-			sampleFile.cond.Wait()
+			sampleFile.condition.Wait()
 		}
 		if sampleFile.cancel {
 			sampleFile.state = "cancelled"
-			sampleFile.mu.Unlock()
+			sampleFile.mutex.Unlock()
 			break readerLoop
 		}
 		sampleFile.state = "downloading"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 
 		// non-blocking read
 		n, readErr := resp.Body.Read(buf)
 		if n > 0 {
 			wn, werr := f.Write(buf[:n])
 			if werr != nil {
-				sampleFile.mu.Lock()
+				sampleFile.mutex.Lock()
 				sampleFile.err = werr
 				sampleFile.state = "error"
-				sampleFile.mu.Unlock()
+				sampleFile.mutex.Unlock()
 				break readerLoop
 			}
-			sampleFile.mu.Lock()
+			sampleFile.mutex.Lock()
 			sampleFile.downloaded += int64(wn)
 			// compute progress
-			if sampleFile.size > 0 {
-				jobProgress := int((sampleFile.downloaded * 100) / sampleFile.size)
-				sampleFile.mu.Unlock()
+			if sampleFile.sizeInBytes > 0 {
+				jobProgress := int((sampleFile.downloaded * 100) / sampleFile.sizeInBytes)
+				sampleFile.mutex.Unlock()
 				_ = jobProgress // just stored in sampleFile below
 			} else {
-				sampleFile.mu.Unlock()
+				sampleFile.mutex.Unlock()
 			}
 		}
 
 		if readErr != nil {
 			if readErr == io.EOF {
 				// finished
-				sampleFile.mu.Lock()
+				sampleFile.mutex.Lock()
 				sampleFile.state = "completed"
 				// set progress 100
-				sampleFile.downloaded = sampleFile.size
-				sampleFile.mu.Unlock()
+				sampleFile.downloaded = sampleFile.sizeInBytes
+				sampleFile.mutex.Unlock()
 			} else {
-				sampleFile.mu.Lock()
+				sampleFile.mutex.Lock()
 				sampleFile.err = readErr
 				sampleFile.state = "error"
-				sampleFile.mu.Unlock()
+				sampleFile.mutex.Unlock()
 			}
 			break readerLoop
 		}
@@ -253,7 +255,7 @@ func (fds *FileDownloadingService) getOrCreateSampleFile(url string) *downloadSa
 		FileName: fileName,
 		state:    "idle",
 	}
-	sampleFile.cond = sync.NewCond(&sampleFile.mu)
+	sampleFile.condition = sync.NewCond(&sampleFile.mutex)
 	actual, _ := fds.sampleFiles.LoadOrStore(url, sampleFile)
 	return actual.(*downloadSampleFile)
 }
@@ -264,10 +266,10 @@ func (fds *FileDownloadingService) GetSampleFilesStatus() []SampleFile {
 	var statuses []SampleFile
 	fds.sampleFiles.Range(func(k, v interface{}) bool {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		progress := 0
-		if sampleFile.size > 0 {
-			progress = int((sampleFile.downloaded * 100) / sampleFile.size)
+		if sampleFile.sizeInBytes > 0 {
+			progress = int((sampleFile.downloaded * 100) / sampleFile.sizeInBytes)
 			if progress > 100 {
 				progress = 100
 			}
@@ -278,7 +280,8 @@ func (fds *FileDownloadingService) GetSampleFilesStatus() []SampleFile {
 			ID:               sampleFile.ID,
 			FileType:         sampleFile.FileName,
 			DownloadURL:      sampleFile.URL,
-			Size:             sampleFile.size,
+			SizeInText:       sampleFile.sizeInText,
+			SizeInBytes:      sampleFile.sizeInBytes,
 			Downloaded:       sampleFile.downloaded,
 			DownloadProgress: progress,
 			State:            sampleFile.state,
@@ -286,7 +289,7 @@ func (fds *FileDownloadingService) GetSampleFilesStatus() []SampleFile {
 		if sampleFile.err != nil {
 			st.Error = sampleFile.err.Error()
 		}
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 
 		statuses = append(statuses, st)
 		return true
@@ -294,7 +297,7 @@ func (fds *FileDownloadingService) GetSampleFilesStatus() []SampleFile {
 	return statuses
 }
 
-func (f *FileDownloadingService) GetAllSampleFiles() ([]SampleFile, error) {
+func (f *FileDownloadingService) FetchSampleFilesInformation() ([]SampleFile, error) {
 	urls := []string{
 		"https://file-examples.com/index.php/sample-video-files/sample-avi-files-download",
 		"https://file-examples.com/index.php/sample-video-files/sample-mov-files-download",
@@ -350,13 +353,13 @@ func (f *FileDownloadingService) GetAllSampleFiles() ([]SampleFile, error) {
 		}
 
 		doc.Find("table tbody tr").Each(func(i int, s *goquery.Selection) {
-			var fileType, size, downloadURL string
+			var fileType, sizeInText, downloadURL string
 
 			s.Find("td").Each(func(j int, td *goquery.Selection) {
 				text := strings.TrimSpace(td.Text())
 
 				if strings.Contains(strings.ToUpper(text), "MB") || strings.Contains(strings.ToUpper(text), "KB") {
-					size = text
+					sizeInText = text
 				} else {
 					for _, ft := range auxiliary.FileTypes {
 						if strings.Contains(strings.ToUpper(text), ft) {
@@ -372,7 +375,7 @@ func (f *FileDownloadingService) GetAllSampleFiles() ([]SampleFile, error) {
 			if downloadURL != "" {
 				allFiles = append(allFiles, SampleFile{
 					FileType:    fileType,
-					Size:        size,
+					SizeInText:  sizeInText,
 					DownloadURL: downloadURL,
 				})
 			}
@@ -398,20 +401,20 @@ func (f *FileDownloadingService) SelectFilesDownloadsDirectory() (string, error)
 // It returns immediately after scheduling downloads; you can call GetSampleFilesStatus to observe progress.
 func (fds *FileDownloadingService) StartAllDownloads(urls []string) error {
 	fds.initOnce.Do(func() {
-		fds.sem = make(chan struct{}, fds.maxWorkers)
+		fds.semaphore = make(chan struct{}, fds.maxWorkers)
 	})
 
 	for _, url := range urls {
 		sampleFile := fds.getOrCreateSampleFile(url)
 
 		// only schedule if not already completed
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		if sampleFile.state == "completed" {
-			sampleFile.mu.Unlock()
+			sampleFile.mutex.Unlock()
 			continue
 		}
 		sampleFile.state = "queued"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 
 		// schedule worker goroutine
 		fds.sampleFilesWaitGroup.Add(1)
@@ -420,12 +423,12 @@ func (fds *FileDownloadingService) StartAllDownloads(urls []string) error {
 
 			// acquire semaphore
 			select {
-			case fds.sem <- struct{}{}:
+			case fds.semaphore <- struct{}{}:
 				// got slot
 			case <-fds.ctx.Done():
 				return
 			}
-			defer func() { <-fds.sem }()
+			defer func() { <-fds.semaphore }()
 
 			fds.downloadWorker(j)
 		}(sampleFile)
@@ -438,9 +441,9 @@ func (fds *FileDownloadingService) StartAllDownloads(urls []string) error {
 func (fds *FileDownloadingService) PauseAllDownloads() {
 	fds.sampleFiles.Range(func(k, v interface{}) bool {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.paused = true
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return true
 	})
 }
@@ -448,12 +451,12 @@ func (fds *FileDownloadingService) PauseAllDownloads() {
 func (fds *FileDownloadingService) ResumeAllDownloads() {
 	fds.sampleFiles.Range(func(k, v interface{}) bool {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		if !sampleFile.cancel {
 			sampleFile.paused = false
-			sampleFile.cond.Broadcast()
+			sampleFile.condition.Broadcast()
 		}
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return true
 	})
 }
@@ -461,12 +464,12 @@ func (fds *FileDownloadingService) ResumeAllDownloads() {
 func (fds *FileDownloadingService) CancelAllDownloads() {
 	fds.sampleFiles.Range(func(k, v interface{}) bool {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.cancel = true
 		sampleFile.paused = false
-		sampleFile.cond.Broadcast()
+		sampleFile.condition.Broadcast()
 		sampleFile.state = "cancelled"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return true
 	})
 }
@@ -474,9 +477,9 @@ func (fds *FileDownloadingService) CancelAllDownloads() {
 func (fds *FileDownloadingService) PauseDownload(id string) error {
 	if v, ok := fds.sampleFiles.Load(id); ok {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.paused = true
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return nil
 	}
 	return fmt.Errorf("sampleFile not found")
@@ -485,30 +488,30 @@ func (fds *FileDownloadingService) PauseDownload(id string) error {
 func (fds *FileDownloadingService) ResumeDownload(id string) error {
 	if v, ok := fds.sampleFiles.Load(id); ok {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		if sampleFile.cancel {
-			sampleFile.mu.Unlock()
+			sampleFile.mutex.Unlock()
 			return fmt.Errorf("sampleFile cancelled")
 		}
 		sampleFile.paused = false
-		sampleFile.cond.Broadcast()
-		sampleFile.mu.Unlock()
+		sampleFile.condition.Broadcast()
+		sampleFile.mutex.Unlock()
 
 		// If sampleFile was "idle" or "queued" or "error" and not in-flight, schedule worker again
 		go func() {
-			sampleFile.mu.Lock()
+			sampleFile.mutex.Lock()
 			state := sampleFile.state
-			sampleFile.mu.Unlock()
+			sampleFile.mutex.Unlock()
 			if state == "idle" || state == "queued" || state == "error" {
 				fds.sampleFilesWaitGroup.Add(1)
 				go func() {
 					defer fds.sampleFilesWaitGroup.Done()
 					select {
-					case fds.sem <- struct{}{}:
+					case fds.semaphore <- struct{}{}:
 					case <-fds.ctx.Done():
 						return
 					}
-					defer func() { <-fds.sem }()
+					defer func() { <-fds.semaphore }()
 					fds.downloadWorker(sampleFile)
 				}()
 			}
@@ -521,12 +524,12 @@ func (fds *FileDownloadingService) ResumeDownload(id string) error {
 func (fds *FileDownloadingService) CancelDownload(id string) error {
 	if v, ok := fds.sampleFiles.Load(id); ok {
 		sampleFile := v.(*downloadSampleFile)
-		sampleFile.mu.Lock()
+		sampleFile.mutex.Lock()
 		sampleFile.cancel = true
 		sampleFile.paused = false
-		sampleFile.cond.Broadcast()
+		sampleFile.condition.Broadcast()
 		sampleFile.state = "cancelled"
-		sampleFile.mu.Unlock()
+		sampleFile.mutex.Unlock()
 		return nil
 	}
 	return fmt.Errorf("sampleFile not found")
