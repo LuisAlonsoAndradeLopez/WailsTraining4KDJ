@@ -45,3 +45,7 @@ export function SetContext(arg1) {
 export function StartAllDownloads(arg1) {
   return window['go']['services']['FileDownloadingService']['StartAllDownloads'](arg1);
 }
+
+export function StartDownload(arg1) {
+  return window['go']['services']['FileDownloadingService']['StartDownload'](arg1);
+}

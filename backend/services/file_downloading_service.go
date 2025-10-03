@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,7 +31,7 @@ type SampleFile struct {
 	DownloadURL      string `json:"downloadUrl"`
 	Downloaded       int64  `json:"downloaded"`
 	DownloadProgress int    `json:"downloadProgress"` // 0-100
-	State            string `json:"state"`            // idle | downloading | paused | cancelled | completed | error
+	DownloadState    string `json:"downloadState"`    // idle | downloading | paused | cancelled | completed | error
 	Error            string `json:"error,omitempty"`
 }
 
@@ -57,12 +60,12 @@ type downloadSampleFile struct {
 	sizeInBytes int64
 
 	// control
-	mutex     sync.Mutex // protects paused/cancelled/downloaded/err
-	condition *sync.Cond // condition for pause/resume
-	paused    bool
-	cancel    bool
-	err       error
-	state     string // same values as SampleFile.State
+	mutex         sync.Mutex // protects paused/cancelled/downloaded/err
+	condition     *sync.Cond // condition for pause/resume
+	paused        bool
+	cancel        bool
+	err           error
+	downloadState string // same values as SampleFile.DownloadState
 
 	// runtime
 	filepath string
@@ -82,49 +85,61 @@ func NewFileDownloadingService() *FileDownloadingService {
 
 // Auxiliary fuctions
 // This function is only for use in app.go file
-func (f *FileDownloadingService) SetContext(ctx context.Context) {
-	f.ctx = ctx
+func (fds *FileDownloadingService) SetContext(ctx context.Context) {
+	fds.ctx = ctx
 }
 
 // downloadWorker does the actual download and supports pause/resume/cancel
 func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile) {
 	sampleFile.mutex.Lock()
-	// if previously paused or cancelled, handle
 	if sampleFile.cancel {
-		sampleFile.state = "cancelled"
+		sampleFile.downloadState = "cancelled"
 		sampleFile.mutex.Unlock()
 		return
 	}
-	sampleFile.state = "downloading"
+	sampleFile.downloadState = "downloading"
 	sampleFile.mutex.Unlock()
 
-	// prepare file path
 	outPath := filepath.Join(fds.downloadDir, sampleFile.FileName)
 	sampleFile.filepath = outPath
+	fmt.Print(sampleFile.FileName)
 
-	// Check if partial file exists (for resume)
+	// verify if the file exists and continue download from the current percentage
 	var startOffset int64 = 0
 	fi, err := os.Stat(outPath)
 	if err == nil {
+		// File exists — resume from its size
 		startOffset = fi.Size()
 		sampleFile.downloaded = startOffset
-	}
-
-	// Create / open file for append
-	f, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
+	} else if os.IsNotExist(err) {
+		// File does not exist — start from 0
+		startOffset = 0
+	} else {
+		// Other unexpected error (e.g., permission denied)
 		sampleFile.mutex.Lock()
 		sampleFile.err = err
-		sampleFile.state = "error"
+		sampleFile.downloadState = "error"
 		sampleFile.mutex.Unlock()
 		return
 	}
-	defer f.Close()
 
-	// Seek to offset
+	// Open or create the file. Use O_RDWR so Seek works properly
+	file, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		sampleFile.mutex.Lock()
+		sampleFile.err = err
+		sampleFile.downloadState = "error"
+		sampleFile.mutex.Unlock()
+		return
+	}
+	fmt.Print("       Royer")
+	defer file.Close()
+
+	// If resuming, seek to the existing offset
 	if startOffset > 0 {
-		if _, err := f.Seek(startOffset, 0); err != nil {
-			// ignore
+		if _, err := file.Seek(startOffset, io.SeekStart); err != nil {
+			// handle seek error if needed
+			fmt.Printf("Warning: failed to seek: %v\n", err)
 		}
 	}
 
@@ -139,7 +154,7 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 	if err != nil {
 		sampleFile.mutex.Lock()
 		sampleFile.err = err
-		sampleFile.state = "error"
+		sampleFile.downloadState = "error"
 		sampleFile.mutex.Unlock()
 		return
 	}
@@ -149,7 +164,7 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 	if resp.StatusCode >= 400 {
 		sampleFile.mutex.Lock()
 		sampleFile.err = fmt.Errorf("status %d", resp.StatusCode)
-		sampleFile.state = "error"
+		sampleFile.downloadState = "error"
 		sampleFile.mutex.Unlock()
 		return
 	}
@@ -173,25 +188,25 @@ readerLoop:
 		// handle pause/cancel before each Read
 		sampleFile.mutex.Lock()
 		for sampleFile.paused && !sampleFile.cancel {
-			sampleFile.state = "paused"
+			sampleFile.downloadState = "paused"
 			sampleFile.condition.Wait()
 		}
 		if sampleFile.cancel {
-			sampleFile.state = "cancelled"
+			sampleFile.downloadState = "cancelled"
 			sampleFile.mutex.Unlock()
 			break readerLoop
 		}
-		sampleFile.state = "downloading"
+		sampleFile.downloadState = "downloading"
 		sampleFile.mutex.Unlock()
 
 		// non-blocking read
 		n, readErr := resp.Body.Read(buf)
 		if n > 0 {
-			wn, werr := f.Write(buf[:n])
+			wn, werr := file.Write(buf[:n])
 			if werr != nil {
 				sampleFile.mutex.Lock()
 				sampleFile.err = werr
-				sampleFile.state = "error"
+				sampleFile.downloadState = "error"
 				sampleFile.mutex.Unlock()
 				break readerLoop
 			}
@@ -211,14 +226,14 @@ readerLoop:
 			if readErr == io.EOF {
 				// finished
 				sampleFile.mutex.Lock()
-				sampleFile.state = "completed"
+				sampleFile.downloadState = "completed"
 				// set progress 100
 				sampleFile.downloaded = sampleFile.sizeInBytes
 				sampleFile.mutex.Unlock()
 			} else {
 				sampleFile.mutex.Lock()
 				sampleFile.err = readErr
-				sampleFile.state = "error"
+				sampleFile.downloadState = "error"
 				sampleFile.mutex.Unlock()
 			}
 			break readerLoop
@@ -234,30 +249,64 @@ readerLoop:
 	}
 }
 
-func (fds *FileDownloadingService) getOrCreateSampleFile(url string) *downloadSampleFile {
+func getFileNameFromURL(rawurl string) string {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		// fallback: try simple split if URL is malformed
+		// remove query/fragment and take last slash segment
+		trimmed := rawurl
+		if i := strings.IndexAny(trimmed, "?#"); i != -1 {
+			trimmed = trimmed[:i]
+		}
+		if idx := strings.LastIndex(trimmed, "/"); idx != -1 {
+			trimmed = trimmed[idx+1:]
+		}
+		if trimmed == "" || trimmed == "." || trimmed == "/" {
+			return "download"
+		}
+		decoded, _ := url.PathUnescape(trimmed)
+		return sanitizeFileName(decoded)
+	}
+
+	name := path.Base(u.Path) // correct for URL paths (always '/')
+	if name == "" || name == "." || name == "/" {
+		return "download"
+	}
+	// decode percent-encoding (e.g. %20)
+	if decoded, err := url.PathUnescape(name); err == nil {
+		name = decoded
+	}
+	return sanitizeFileName(name)
+}
+
+func (fds *FileDownloadingService) getOrCreateDownloadSampleFile(url string) *downloadSampleFile {
 	if v, ok := fds.sampleFiles.Load(url); ok {
 		return v.(*downloadSampleFile)
 	}
 
 	// Create new sampleFile
-	fileName := filepath.Base(url)
-	if strings.Contains(fileName, "?") {
-		fileName = strings.SplitN(fileName, "?", 2)[0]
-	}
-
-	if fileName == "" || fileName == "/" {
-		fileName = "download"
-	}
+	fileName := getFileNameFromURL(url)
 
 	sampleFile := &downloadSampleFile{
-		ID:       url,
-		URL:      url,
-		FileName: fileName,
-		state:    "idle",
+		ID:            url,
+		URL:           url,
+		FileName:      fileName,
+		downloadState: "idle",
 	}
 	sampleFile.condition = sync.NewCond(&sampleFile.mutex)
 	actual, _ := fds.sampleFiles.LoadOrStore(url, sampleFile)
 	return actual.(*downloadSampleFile)
+}
+
+func sanitizeFileName(name string) string {
+	var invalidFileNameChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1F]`)
+
+	name = strings.TrimSpace(name)
+	name = invalidFileNameChars.ReplaceAllString(name, "_")
+	if name == "" {
+		return "download"
+	}
+	return name
 }
 
 // Functions for FilesDownloader
@@ -273,7 +322,7 @@ func (fds *FileDownloadingService) GetSampleFilesStatus() []SampleFile {
 			if progress > 100 {
 				progress = 100
 			}
-		} else if sampleFile.state == "completed" {
+		} else if sampleFile.downloadState == "completed" {
 			progress = 100
 		}
 		st := SampleFile{
@@ -284,7 +333,7 @@ func (fds *FileDownloadingService) GetSampleFilesStatus() []SampleFile {
 			SizeInBytes:      sampleFile.sizeInBytes,
 			Downloaded:       sampleFile.downloaded,
 			DownloadProgress: progress,
-			State:            sampleFile.state,
+			DownloadState:    sampleFile.downloadState,
 		}
 		if sampleFile.err != nil {
 			st.Error = sampleFile.err.Error()
@@ -385,15 +434,15 @@ func (f *FileDownloadingService) FetchSampleFilesInformation() ([]SampleFile, er
 	return allFiles, nil
 }
 
-func (f *FileDownloadingService) SelectFilesDownloadsDirectory() (string, error) {
-	selection, err := runtime.OpenDirectoryDialog(f.ctx, runtime.OpenDialogOptions{
+func (fds *FileDownloadingService) SelectFilesDownloadsDirectory() (string, error) {
+	selection, err := runtime.OpenDirectoryDialog(fds.ctx, runtime.OpenDialogOptions{
 		Title: "Select Downloads Directory",
 	})
 	if err != nil {
 		return "", err
 	}
 
-	f.downloadDir = selection
+	fds.downloadDir = selection
 	return selection, nil
 }
 
@@ -405,18 +454,16 @@ func (fds *FileDownloadingService) StartAllDownloads(urls []string) error {
 	})
 
 	for _, url := range urls {
-		sampleFile := fds.getOrCreateSampleFile(url)
+		dsf := fds.getOrCreateDownloadSampleFile(url)
 
-		// only schedule if not already completed
-		sampleFile.mutex.Lock()
-		if sampleFile.state == "completed" {
-			sampleFile.mutex.Unlock()
+		dsf.mutex.Lock()
+		if dsf.downloadState == "completed" {
+			dsf.mutex.Unlock()
 			continue
 		}
-		sampleFile.state = "queued"
-		sampleFile.mutex.Unlock()
+		dsf.downloadState = "queued"
+		dsf.mutex.Unlock()
 
-		// schedule worker goroutine
 		fds.sampleFilesWaitGroup.Add(1)
 		go func(j *downloadSampleFile) {
 			defer fds.sampleFilesWaitGroup.Done()
@@ -431,7 +478,7 @@ func (fds *FileDownloadingService) StartAllDownloads(urls []string) error {
 			defer func() { <-fds.semaphore }()
 
 			fds.downloadWorker(j)
-		}(sampleFile)
+		}(dsf)
 	}
 
 	// do not block here; caller can poll GetSampleFilesStatus
@@ -468,10 +515,39 @@ func (fds *FileDownloadingService) CancelAllDownloads() {
 		sampleFile.cancel = true
 		sampleFile.paused = false
 		sampleFile.condition.Broadcast()
-		sampleFile.state = "cancelled"
+		sampleFile.downloadState = "cancelled"
 		sampleFile.mutex.Unlock()
 		return true
 	})
+}
+
+func (fds *FileDownloadingService) StartDownload(url string) error {
+	fds.initOnce.Do(func() {
+		fds.semaphore = make(chan struct{}, fds.maxWorkers)
+	})
+
+	sampleFile := fds.getOrCreateDownloadSampleFile(url)
+	sampleFile.mutex.Lock()
+	sampleFile.downloadState = "queued"
+	sampleFile.mutex.Unlock()
+
+	fds.sampleFilesWaitGroup.Add(1)
+	go func(j *downloadSampleFile) {
+		defer fds.sampleFilesWaitGroup.Done()
+
+		// acquire semaphore
+		select {
+		case fds.semaphore <- struct{}{}:
+			// got slot
+		case <-fds.ctx.Done():
+			return
+		}
+		defer func() { <-fds.semaphore }()
+
+		fds.downloadWorker(j)
+	}(sampleFile)
+
+	return nil
 }
 
 func (fds *FileDownloadingService) PauseDownload(id string) error {
@@ -500,9 +576,9 @@ func (fds *FileDownloadingService) ResumeDownload(id string) error {
 		// If sampleFile was "idle" or "queued" or "error" and not in-flight, schedule worker again
 		go func() {
 			sampleFile.mutex.Lock()
-			state := sampleFile.state
+			downloadState := sampleFile.downloadState
 			sampleFile.mutex.Unlock()
-			if state == "idle" || state == "queued" || state == "error" {
+			if downloadState == "idle" || downloadState == "queued" || downloadState == "error" {
 				fds.sampleFilesWaitGroup.Add(1)
 				go func() {
 					defer fds.sampleFilesWaitGroup.Done()
@@ -528,7 +604,7 @@ func (fds *FileDownloadingService) CancelDownload(id string) error {
 		sampleFile.cancel = true
 		sampleFile.paused = false
 		sampleFile.condition.Broadcast()
-		sampleFile.state = "cancelled"
+		sampleFile.downloadState = "cancelled"
 		sampleFile.mutex.Unlock()
 		return nil
 	}

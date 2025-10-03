@@ -11,7 +11,7 @@ import {
   ResumeAllDownloads,
   CancelAllDownloads,
   GetSampleFilesStatus,
-  //StartDownload,
+  StartDownload,
   PauseDownload,
   ResumeDownload,
   CancelDownload,
@@ -68,7 +68,7 @@ async function changeDownloadingPathButtonOnClick() {
 
 async function downloadFileButtonOnClick(row) {
   row.downloadState = "downloading";
-  await StartDownload(row.DownloadURL); // schedules this URL individually
+  await StartDownload(row.downloadURL); // schedules this URL individually
   startPollingSampleFileStatus();
 }
 
@@ -133,15 +133,15 @@ function startPollingSampleFileStatus() {
       // update local files
       statuses.forEach((st) => {
         const file = files.value.find(
-          (f) => f.id === st.ID || f.DownloadURL === st.URL
+          (f) => f.id === st.id || f.downloadURL === st.downloadUrl
         );
         if (file) {
-          file.progress = st.Progress;
-          file.downloadState = st.State;
-          if (st.State === "completed") {
-            file.progress = 100;
+          file.downloadProgress = st.downloadProgress;
+          file.downloadState = st.downloadState;
+          if (st.downloadState === "completed") {
+            file.downloadProgress = 100;
           }
-          if (st.State === "error") {
+          if (st.downloadState === "error") {
             file.downloadState = "idle";
             // optionally show error somewhere
           }
@@ -315,17 +315,18 @@ watch([filesSearchQuery, filesSearchField], () => {
                 <td class="px-3 py-2 file-size-td">
                   <label class="fs-5">{{ file.sizeInText }}</label>
                 </td>
+                
                 <td class="px-3 py-2 file-download-progress-td">
                   <div class="progress" style="height: 35px">
                     <div
                       class="progress-bar progress-bar-striped"
                       role="progressbar"
-                      :style="{ width: file.progress + '%' }"
-                      :aria-valuenow="file.progress"
+                      :style="{ width: file.downloadProgress + '%' }"
+                      :aria-valuenow="file.downloadProgress"
                       aria-valuemin="0"
                       aria-valuemax="100"
                     >
-                      {{ file.progress }}%
+                      {{ file.downloadProgress }}%
                     </div>
                   </div>
                 </td>

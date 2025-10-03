@@ -24,3 +24,5 @@ export function SelectFilesDownloadsDirectory():Promise<string>;
 export function SetContext(arg1:context.Context):Promise<void>;
 
 export function StartAllDownloads(arg1:Array<string>):Promise<void>;
+
+export function StartDownload(arg1:string):Promise<void>;

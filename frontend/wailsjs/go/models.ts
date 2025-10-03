@@ -93,7 +93,7 @@ export namespace services {
 	    downloadUrl: string;
 	    downloaded: number;
 	    downloadProgress: number;
-	    state: string;
+	    downloadState: string;
 	    error?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -109,7 +109,7 @@ export namespace services {
 	        this.downloadUrl = source["downloadUrl"];
 	        this.downloaded = source["downloaded"];
 	        this.downloadProgress = source["downloadProgress"];
-	        this.state = source["state"];
+	        this.downloadState = source["downloadState"];
 	        this.error = source["error"];
 	    }
 	}
