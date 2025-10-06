@@ -1,5 +1,3 @@
-//Create StartDownload method by my own
-
 package services
 
 import (
@@ -45,7 +43,7 @@ type FileDownloadingService struct {
 
 	// sampleFiles registry
 	sampleFiles          sync.Map
-	sampleFilesWaitGroup sync.WaitGroup // For use in StartAllDownloads function to wait until enqueued sampleFiles are finished
+	sampleFilesWaitGroup sync.WaitGroup // For use in StartAllDownloads and StartDownload functions to wait until enqueued sampleFiles are finished
 
 	// once init
 	initOnce sync.Once
@@ -102,7 +100,6 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 
 	outPath := filepath.Join(fds.downloadDir, sampleFile.FileName)
 	sampleFile.filepath = outPath
-	fmt.Print(sampleFile.FileName)
 
 	// verify if the file exists and continue download from the current percentage
 	var startOffset int64 = 0
@@ -132,7 +129,6 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 		sampleFile.mutex.Unlock()
 		return
 	}
-	fmt.Print("       Royer")
 	defer file.Close()
 
 	// If resuming, seek to the existing offset
@@ -144,12 +140,15 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 	}
 
 	// Build request with Range if resuming
+	sampleFile.URL = "https://testfile.net/PDF/10MB-TESTFILE.ORG.pdf"
 	client := &http.Client{Timeout: 0}
 	req, _ := http.NewRequest("GET", sampleFile.URL, nil)
 	if startOffset > 0 {
 		req.Header.Set("Range", "bytes="+strconv.FormatInt(startOffset, 10)+"-")
 	}
-	req.Header.Set("User-Agent", "WailsDownloader/1.0")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "+
+		"(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36")
+	req.Header.Set("Referer", "https://testfile.net/")
 	resp, err := client.Do(req)
 	if err != nil {
 		sampleFile.mutex.Lock()
@@ -159,6 +158,10 @@ func (fds *FileDownloadingService) downloadWorker(sampleFile *downloadSampleFile
 		return
 	}
 	defer resp.Body.Close()
+
+	fmt.Println("✅ URL:", sampleFile.URL)
+	fmt.Println("📡 Status code:", resp.StatusCode)
+	fmt.Println("📦 Content-Length:", resp.Header.Get("Content-Length"))
 
 	// If server gave Content-Length, compute total size
 	if resp.StatusCode >= 400 {
@@ -212,7 +215,7 @@ readerLoop:
 			}
 			sampleFile.mutex.Lock()
 			sampleFile.downloaded += int64(wn)
-			// compute progress
+
 			if sampleFile.sizeInBytes > 0 {
 				jobProgress := int((sampleFile.downloaded * 100) / sampleFile.sizeInBytes)
 				sampleFile.mutex.Unlock()
@@ -284,7 +287,6 @@ func (fds *FileDownloadingService) getOrCreateDownloadSampleFile(url string) *do
 		return v.(*downloadSampleFile)
 	}
 
-	// Create new sampleFile
 	fileName := getFileNameFromURL(url)
 
 	sampleFile := &downloadSampleFile{
@@ -481,7 +483,6 @@ func (fds *FileDownloadingService) StartAllDownloads(urls []string) error {
 		}(dsf)
 	}
 
-	// do not block here; caller can poll GetSampleFilesStatus
 	return nil
 }
 

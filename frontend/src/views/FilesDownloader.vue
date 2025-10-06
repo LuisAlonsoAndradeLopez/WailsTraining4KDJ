@@ -68,7 +68,7 @@ async function changeDownloadingPathButtonOnClick() {
 
 async function downloadFileButtonOnClick(row) {
   row.downloadState = "downloading";
-  await StartDownload(row.downloadURL); // schedules this URL individually
+  await StartDownload(row.downloadUrl); // schedules this URL individually
   startPollingSampleFileStatus();
 }
 
@@ -335,7 +335,10 @@ watch([filesSearchQuery, filesSearchField], () => {
                   class="d-flex flex-column justify-content-center align-items-center gap-1"
                 >
                   <button
-                    v-if="file.downloadState === 'idle'"
+                    v-if="file.downloadState === 'idle' ||
+                      file.downloadState === 'cancelled' ||
+                      file.downloadState === 'completed' ||
+                      file.downloadState === 'error'"
                     class="btn btn-lg btn-secondary"
                     @click="downloadFileButtonOnClick(file)"
                   >
