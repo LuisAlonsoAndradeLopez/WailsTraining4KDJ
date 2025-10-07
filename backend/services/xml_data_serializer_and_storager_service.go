@@ -2,9 +2,13 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/SaulEnriqueMR/kore-models/models/comprobante"
 )
 
 type SampleFile struct {
@@ -29,7 +33,7 @@ type XMLDataSerializerAndStoragerService struct {
 
 	// sampleFiles registry
 	sampleFiles          sync.Map
-	sampleFilesWaitGroup sync.WaitGroup // For use in StartAllDownloads and StartDownload functions to wait until enqueued sampleFiles are finished
+	sampleFilesWaitGroup sync.WaitGroup // For use in StorageAllXMLsand StartDownload functions to wait until enqueued sampleFiles are finished
 
 	// once init
 	initOnce sync.Once
@@ -73,38 +77,58 @@ func (fds *XMLDataSerializerAndStoragerService) SetContext(ctx context.Context) 
 	fds.ctx = ctx
 }
 
-// StartAllDownloads starts downloading all URLs concurrently (with worker limitation).
-// It returns immediately after scheduling downloads; you can call GetSampleFilesStatus to observe progress.
-func (fds *XMLDataSerializerAndStoragerService) StartAllDownloads(urls []string) error {
+// Functions for use in XMLDataSerializerAndStorager.vue
+func (fds *XMLDataSerializerAndStoragerService) FetchAvailableXMLs() ([]comprobante.Comprobante, error) {
+	rootPath := "C:/Users/wmike/Documents/Nobeno Zemeztre/Prrrrrrrrrrrrácticas de Ingeniebría de Software/2025"
+	var files []comprobante.Comprobante
+
+	err := filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".xml" {
+			fmt.Println("📄 Found:", path)
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+
+			if convertedComprobante, err := comprobante.SerializeComprobanteFromXml(data); err != nil {
+				fmt.Printf("❌ Failed to parse %s: %v\n", path, err)
+			} else {
+				files = append(files, convertedComprobante)
+			}
+		}
+
+		return nil
+	})
+
+	return files, err
+}
+
+func (fds *XMLDataSerializerAndStoragerService) StorageAllAvailableXMLs(urls []string) error {
 
 	return nil
 }
 
-func (fds *XMLDataSerializerAndStoragerService) PauseAllDownloads() {
+func (fds *XMLDataSerializerAndStoragerService) PauseAllAvailableXMLsStoraging() {
 
 }
 
-func (fds *XMLDataSerializerAndStoragerService) ResumeAllDownloads() {
+func (fds *XMLDataSerializerAndStoragerService) ResumeAllAvailableXMLsStoraging() {
 
 }
 
-func (fds *XMLDataSerializerAndStoragerService) CancelAllDownloads() {
+func (fds *XMLDataSerializerAndStoragerService) CancelAllAvailableXMLsStoraging() {
 
 }
 
-func (fds *XMLDataSerializerAndStoragerService) StartDownload(url string) error {
+func (fds *XMLDataSerializerAndStoragerService) StorageAvailableXml(url string) error {
 
 	return nil
 }
 
-func (fds *XMLDataSerializerAndStoragerService) PauseDownload(id string) error {
-	return nil
-}
-
-func (fds *XMLDataSerializerAndStoragerService) ResumeDownload(id string) error {
-	return nil
-}
-
-func (fds *XMLDataSerializerAndStoragerService) CancelDownload(id string) error {
+func (fds *XMLDataSerializerAndStoragerService) DeleteStoragedXml(id string) error {
 	return nil
 }

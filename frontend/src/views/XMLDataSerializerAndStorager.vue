@@ -1,10 +1,11 @@
+//TODO: Continue with showing Comprobantes
 <script setup>
 import { onMounted, ref, watch } from "vue";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
 
-//import {
-//  FetchXMLFilesInformation,
+import {
+  FetchAvailableXMLs,
 //  StartAllStoragings,
 //  PauseAllStoragings,
 //  ResumeAllStoragings,
@@ -13,7 +14,7 @@ import ViewNavigator from "../components/ViewNavigator.vue";
 //  PauseStoraging,
 //  ResumeStoraging,
 //  CancelStoraging,
-//} from "../../wailsjs/go/services/XMLDataSerializerAndStoragerService";
+} from "../../wailsjs/go/services/XMLDataSerializerAndStoragerService";
 
 const availableXmls = ref([]);
 const filteredAvailableXmls = ref([]);
@@ -29,13 +30,13 @@ const findStoragedXMLsTextAreaPlaceholder = ref(
 );
 
 //Buttons onclick functions
-async function storageAllXmlsButtonOnClick() {}
+async function storageAllAvaliableXmlsButtonOnClick() {}
 
-async function pauseAllXmlsStoragingButtonOnClick() {}
+async function pauseAllAvaliableXmlsStoragingButtonOnClick() {}
 
-async function resumeAllXmlsStoragingButtonOnClick() {}
+async function resumeAllAvaliableXmlsStoragingButtonOnClick() {}
 
-async function cancelAllXmlsStoragingButtonOnClick() {}
+async function cancelAllAvaliableXmlsStoragingButtonOnClick() {}
 
 async function storageAvailableXmlButtonOnClick(xml) {}
 
@@ -47,7 +48,9 @@ async function fillFilesTable() {}
 function filterFiles() {}
 
 //Vue.js functions
-onMounted(async () => {});
+onMounted(async () => {
+  await FetchAvailableXMLs();
+});
 </script>
 
 <template>
@@ -60,25 +63,25 @@ onMounted(async () => {});
     >
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="storageAllXmlsButtonOnClick()"
+        @click="storageAllAvaliableXmlsButtonOnClick()"
       >
         Storage all XMLs
       </button>
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="resumeAllXmlsStoragingButtonOnClick()"
+        @click="resumeAllAvaliableXmlsStoragingButtonOnClick()"
       >
         Resume all XMLs storaging
       </button>
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="pauseAllXmlsStoragingButtonOnClick()"
+        @click="pauseAllAvaliableXmlsStoragingButtonOnClick()"
       >
         Pause all XMLs storaging
       </button>
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="cancelAllXmlsStoragingButtonOnClick()"
+        @click="cancelAllAvaliableXmlsStoragingButtonOnClick()"
       >
         Cancel all XMLs storaging
       </button>
