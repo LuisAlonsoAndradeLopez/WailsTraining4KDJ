@@ -13,11 +13,11 @@ import (
 type App struct {
 	ctx context.Context
 
-	BookService            *services.BookService
-	FileDownloadingService *services.FileDownloadingService
-	RestService            *services.RestService
-	SoapService            *services.SoapService
-	UserService            *services.UserService
+	BookService                         *services.BookService
+	XMLDataSerializerAndStoragerService *services.XMLDataSerializerAndStoragerService
+	RestService                         *services.RestService
+	SoapService                         *services.SoapService
+	UserService                         *services.UserService
 }
 
 func NewApp() *App {
@@ -52,9 +52,9 @@ func NewApp() *App {
 	return &App{
 
 		//BookService: services.NewBookService(bookRepoWithMongodb),
-		BookService:            services.NewBookService(bookRepoWithBbolt),
-		FileDownloadingService: services.NewFileDownloadingService(),
-		RestService:            services.NewRestService(),
+		BookService:                         services.NewBookService(bookRepoWithBbolt),
+		XMLDataSerializerAndStoragerService: services.NewXMLDataSerializerAndStoragerService(),
+		RestService:                         services.NewRestService(),
 		SoapService: services.NewSoapService(
 			"https://www.dataaccess.com/webservicesserver/numberconversion.wso?WSDL",
 		),
@@ -65,5 +65,5 @@ func NewApp() *App {
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
-	a.FileDownloadingService.SetContext(ctx)
+	a.XMLDataSerializerAndStoragerService.SetContext(ctx)
 }

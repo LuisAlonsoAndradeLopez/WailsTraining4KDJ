@@ -21,8 +21,8 @@ function goToBooksManager() {
   changeView("BooksManager");
 }
 
-function goToFilesDownloader() {
-  changeView("FilesDownloader");
+function goToXMLDataSerializerAndStorager() {
+  changeView("XMLDataSerializerAndStorager");
 }
 </script>
 
@@ -45,7 +45,7 @@ function goToFilesDownloader() {
     <button class="btn btn-dark btn-md border" @click="goToBooksManager">
       Go to Books Manager
     </button>
-    <button class="btn btn-dark btn-md border" @click="goToFilesDownloader">
+    <button class="btn btn-dark btn-md border" @click="goToXMLDataSerializerAndStorager">
       Go to Files Downloader
     </button>
   </div>

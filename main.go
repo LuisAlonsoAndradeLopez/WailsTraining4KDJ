@@ -31,7 +31,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 			app.BookService,
-			app.FileDownloadingService,
+			app.XMLDataSerializerAndStoragerService,
 			app.RestService,
 			app.SoapService,
 			app.UserService,

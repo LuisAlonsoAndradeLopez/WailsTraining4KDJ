@@ -83,36 +83,3 @@ export namespace models {
 
 }
 
-export namespace services {
-	
-	export class SampleFile {
-	    id: string;
-	    fileType: string;
-	    sizeInText: string;
-	    sizeInBytes: number;
-	    downloadUrl: string;
-	    downloaded: number;
-	    downloadProgress: number;
-	    downloadState: string;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new SampleFile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.fileType = source["fileType"];
-	        this.sizeInText = source["sizeInText"];
-	        this.sizeInBytes = source["sizeInBytes"];
-	        this.downloadUrl = source["downloadUrl"];
-	        this.downloaded = source["downloaded"];
-	        this.downloadProgress = source["downloadProgress"];
-	        this.downloadState = source["downloadState"];
-	        this.error = source["error"];
-	    }
-	}
-
-}
-
