@@ -10,8 +10,8 @@ export function DeleteStoragedXml(arg1) {
   return window['go']['services']['XMLDataSerializerAndStoragerService']['DeleteStoragedXml'](arg1);
 }
 
-export function FetchAvailableXMLs(arg1) {
-  return window['go']['services']['XMLDataSerializerAndStoragerService']['FetchAvailableXMLs'](arg1);
+export function FetchAvailableXMLs() {
+  return window['go']['services']['XMLDataSerializerAndStoragerService']['FetchAvailableXMLs']();
 }
 
 export function PauseAllAvailableXMLsStoraging() {

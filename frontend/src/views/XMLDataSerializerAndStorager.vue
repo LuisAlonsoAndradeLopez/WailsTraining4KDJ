@@ -1,4 +1,4 @@
-//TODO: Continue with showing Comprobantes
+//TODO: Execute the button storageComprobante
 <script setup>
 import { onMounted, ref, watch } from "vue";
 
@@ -10,7 +10,7 @@ import {
 //  PauseAllStoragings,
 //  ResumeAllStoragings,
 //  CancelAllStoragings,
-//  StartStoraging,
+  StorageAvailableXml,
 //  PauseStoraging,
 //  ResumeStoraging,
 //  CancelStoraging,
@@ -38,18 +38,90 @@ async function resumeAllAvaliableXmlsStoragingButtonOnClick() {}
 
 async function cancelAllAvaliableXmlsStoragingButtonOnClick() {}
 
-async function storageAvailableXmlButtonOnClick(xml) {}
+async function storageAvailableXmlButtonOnClick(comprobanteInJson) {
+  await StorageAvailableXml(comprobanteInJson);
+}
 
 async function deleteStoragedXmlButtonOnClick(xml) {}
 
 //Auxiliary funcions
-async function fillFilesTable() {}
+function filterAvailableXMLs() {
+  const queryText = availableXMLsSearchQuery.value.trim();
 
-function filterFiles() {}
+  // No query → show all
+  if (!queryText) {
+    filteredAvailableXmls.value = availableXmls.value;
+    return;
+  }
+
+  // Try parse JSON query
+  let jsonQuery;
+  try {
+    jsonQuery = JSON.parse(queryText);
+  } catch {
+    jsonQuery = null;
+  }
+
+  // Plain text search
+  if (!jsonQuery) {
+    const text = queryText.toLowerCase();
+    filteredAvailableXmls.value = availableXmls.value.filter((xml) =>
+      Object.values(xml).some((v) =>
+        v?.toString().toLowerCase().includes(text)
+      )
+    );
+    return;
+  }
+
+  // JSON query mode
+  if (jsonQuery.conditions && Array.isArray(jsonQuery.conditions)) {
+    filteredAvailableXmls.value = availableXmls.value.filter((xml) =>
+      jsonQuery.conditions.every((cond) => {
+        const value = xml[cond.field]?.toString().toLowerCase() || "";
+        const target = cond.value.toLowerCase();
+
+        switch (cond.match) {
+          case "startsWith":
+            return value.startsWith(target);
+          case "equals":
+            return value === target;
+          case "includes":
+          default:
+            return value.includes(target);
+        }
+      })
+    );
+  } else if (jsonQuery.field && jsonQuery.value) {
+    // Simple JSON object
+    filteredAvailableXmls.value = availableXmls.value.filter((xml) => {
+      const value = xml[jsonQuery.field]?.toString().toLowerCase() || "";
+      const target = jsonQuery.value.toLowerCase();
+
+      switch (jsonQuery.match) {
+        case "startsWith":
+          return value.startsWith(target);
+        case "equals":
+          return value === target;
+        case "includes":
+        default:
+          return value.includes(target);
+      }
+    });
+  } else {
+    // Invalid JSON structure — show all
+    filteredAvailableXmls.value = availableXmls.value;
+  }
+}
 
 //Vue.js functions
 onMounted(async () => {
-  await FetchAvailableXMLs();
+  const data = await FetchAvailableXMLs();
+  availableXmls.value = data;
+  filteredAvailableXmls.value = data;
+});
+
+watch([availableXMLsSearchQuery], () => {
+  filterAvailableXMLs();
 });
 </script>
 
@@ -98,15 +170,15 @@ onMounted(async () => {
         :placeholder="findAvailableXMLsTextAreaPlaceholder"
       />
       <h3 class="fw-bold fs-4">XMLs available for storage</h3>
-      <div class="w-100 gap-2 xmls-div">
+      <div class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 xmls-div">
         <div
-          v-for="(xml, rowIndex) in filteredAvailableXmls"
+          v-for="(comprobanteInJson, rowIndex) in filteredAvailableXmls"
           :key="rowIndex"
-          class="d-flex flex-column justify-content-center align-items-center w-25 p-2 gap-2 bg-dark"
+          class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
-          <textarea class="form-control fs-3 lh-1" disabled
-          >{{ xml }}</textarea>
-          <button class="btn btn-lg btn-primary" @click="storageAvailableXmlButtonOnClick(xml)">
+          <textarea class="form form-control fs-3 lh-1 xml-textarea" disabled
+          >{{ comprobanteInJson }}</textarea>
+          <button class="btn btn-lg btn-primary" @click="storageAvailableXmlButtonOnClick(comprobanteInJson)">
             Storage
           </button>
         </div>
@@ -124,13 +196,13 @@ onMounted(async () => {
         :placeholder="findStoragedXMLsTextAreaPlaceholder"
       />
       <h3 class="fw-bold fs-4">Storaged XMLs</h3>
-      <div class="w-100 xmls-div">
+      <div class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 xmls-div">
         <div
           v-for="(xml, rowIndex) in filteredStoragedXmls"
           :key="rowIndex"
-          class="d-flex flex-column justify-content-center align-items-center w-25 p-2 gap-2 bg-dark"
+          class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
-          <textarea class="form-control fs-3 lh-1" disabled
+          <textarea class="form form-control fs-3 lh-1 xml-textarea" disabled
           >{{ xml }}</textarea>
           <button class="btn btn-lg btn-primary" @click="deleteStoragedXmlButtonOnClick(xml)">
             Delete
@@ -147,10 +219,14 @@ onMounted(async () => {
 }
 
 .xmls-div {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
-  scroll-snap-type: x mandatory;
   scroll-snap-type: y mandatory;
-  height: 50vh;
+  height: 55vh;
+}
+
+.xml-textarea {
+  width: 100%;
+  height: 41vh;
 }
 </style>

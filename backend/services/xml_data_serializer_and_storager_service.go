@@ -2,30 +2,21 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
 
+	bolt "go.etcd.io/bbolt"
+
 	"github.com/SaulEnriqueMR/kore-models/models/comprobante"
 )
 
-type SampleFile struct {
-	ID               string `json:"id"` // the download URL is the ID
-	FileType         string `json:"fileType"`
-	SizeInText       string `json:"sizeInText"` // only for show the data in FileDownloader.vue files table, do not convert data to bytes with it because that is the prupose of SizeInBytes
-	SizeInBytes      int64  `json:"sizeInBytes"`
-	DownloadURL      string `json:"downloadUrl"`
-	Downloaded       int64  `json:"downloaded"`
-	DownloadProgress int    `json:"downloadProgress"` // 0-100
-	DownloadState    string `json:"downloadState"`    // idle | downloading | paused | cancelled | completed | error
-	Error            string `json:"error,omitempty"`
-}
-
 type XMLDataSerializerAndStoragerService struct {
-	downloadDir string
-	ctx         context.Context
+	bboltDb *bolt.DB
+	ctx     context.Context
 
 	// concurrency controls
 	maxWorkers int
@@ -59,14 +50,12 @@ type downloadSampleFile struct {
 	filepath string
 }
 
-func NewXMLDataSerializerAndStoragerService() *XMLDataSerializerAndStoragerService {
-	homeDir, _ := os.UserHomeDir()
-	defaultDir := filepath.Join(homeDir, "Downloads")
+func (fds *XMLDataSerializerAndStoragerService) NewXMLDataSerializerAndStoragerService(db *bolt.DB) *XMLDataSerializerAndStoragerService {
+	fds.bboltDb = db
 
 	s := &XMLDataSerializerAndStoragerService{
-		downloadDir: defaultDir,
-		maxWorkers:  6,                      // configurable concurrency
-		semaphore:   make(chan struct{}, 6), // buffered to maxWorkers
+		maxWorkers: 6,                      // configurable concurrency
+		semaphore:  make(chan struct{}, 6), // buffered to maxWorkers
 	}
 	return s
 }
@@ -87,8 +76,6 @@ func (fds *XMLDataSerializerAndStoragerService) FetchAvailableXMLs() ([]comproba
 			return err
 		}
 		if !d.IsDir() && filepath.Ext(path) == ".xml" {
-			fmt.Println("📄 Found:", path)
-
 			data, err := os.ReadFile(path)
 			if err != nil {
 				return err
@@ -124,8 +111,37 @@ func (fds *XMLDataSerializerAndStoragerService) CancelAllAvailableXMLsStoraging(
 
 }
 
-func (fds *XMLDataSerializerAndStoragerService) StorageAvailableXml(url string) error {
+func (fds *XMLDataSerializerAndStoragerService) StorageAvailableXml(xmlConvertedToJson map[string]interface{}) error {
+	// Marshal the JSON map to bytes (for storage)
+	jsonInBytes, err := json.Marshal(xmlConvertedToJson)
+	if err != nil {
+		return fmt.Errorf("marshal failed: %w", err)
+	}
 
+	// Safely extract UUID
+	comprobante40, ok := xmlConvertedToJson["Comprobante40"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("Comprobante40 field missing or invalid")
+	}
+
+	uuid, ok := comprobante40["Uuid"].(string)
+	if !ok {
+		return fmt.Errorf("Uuid field missing or invalid")
+	}
+
+	// Write it to BoltDB
+	err = fds.bboltDb.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte("CFDIs"))
+		if err != nil {
+			return fmt.Errorf("bucket creation failed: %w", err)
+		}
+		return b.Put([]byte(uuid), jsonInBytes)
+	})
+	if err != nil {
+		return fmt.Errorf("write failed: %w", err)
+	}
+
+	fmt.Println("✅ Stored CFDI:", uuid)
 	return nil
 }
 
