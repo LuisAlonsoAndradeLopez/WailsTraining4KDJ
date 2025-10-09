@@ -17,8 +17,8 @@ function goToBooksManager() {
   changeView("BooksManager");
 }
 
-function goToXMLDataSerializerAndStorager() {
-  changeView("XMLDataSerializerAndStorager");
+function goToJsonDataSerializerAndStorager() {
+  changeView("JsonDataSerializerAndStorager");
 }
 </script>
 
@@ -57,7 +57,7 @@ function goToXMLDataSerializerAndStorager() {
         <i class="bi bi-book fs-2"></i>
       </button>
 
-      <button class="btn btn-primary btn-md" @click="goToXMLDataSerializerAndStorager">
+      <button class="btn btn-primary btn-md" @click="goToJsonDataSerializerAndStorager">
         <p class="fw-bold fs-4">Go to Files Downloader</p>
         <i class="bi bi-download fs-2"></i>
       </button>

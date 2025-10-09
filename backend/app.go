@@ -13,11 +13,11 @@ import (
 type App struct {
 	ctx context.Context
 
-	BookService                         *services.BookService
-	RestService                         *services.RestService
-	SoapService                         *services.SoapService
-	UserService                         *services.UserService
-	XMLDataSerializerAndStoragerService *services.XMLDataSerializerAndStoragerService
+	BookService                          *services.BookService
+	RestService                          *services.RestService
+	SoapService                          *services.SoapService
+	UserService                          *services.UserService
+	JsonDataSerializerAndStoragerService *services.JsonDataSerializerAndStoragerService
 }
 
 func NewApp() *App {
@@ -52,18 +52,18 @@ func NewApp() *App {
 	return &App{
 
 		//BookService: services.NewBookService(bookRepoWithMongodb),
-		BookService: services.NewBookService(bookRepoWithBbolt),
-		RestService: services.NewRestService(),
+		BookService:                          services.NewBookService(bookRepoWithBbolt),
+		JsonDataSerializerAndStoragerService: services.NewJsonDataSerializerAndStoragerService(bboltDatabase),
+		RestService:                          services.NewRestService(),
 		SoapService: services.NewSoapService(
 			"https://www.dataaccess.com/webservicesserver/numberconversion.wso?WSDL",
 		),
 		//UserService: services.NewUserService(mysqlDatabase),
-		UserService:                         services.NewUserService(sqliteDatabase),
-		XMLDataSerializerAndStoragerService: services.NewXMLDataSerializerAndStoragerService(bboltDatabase),
+		UserService: services.NewUserService(sqliteDatabase),
 	}
 }
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
-	a.XMLDataSerializerAndStoragerService.SetContext(ctx)
+	a.JsonDataSerializerAndStoragerService.SetContext(ctx)
 }
