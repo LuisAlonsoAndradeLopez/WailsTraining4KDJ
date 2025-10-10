@@ -8,13 +8,7 @@ import {
   FetchAvailableJsons,
   FetchStoragedJsons,
   StorageAllAvailableJsons,
-  PauseAllAvailableJsonsStoraging,
-  ResumeAllAvailableJsonsStoraging,
-  CancelAllAvailableJsonsStoraging,
   DeleteAllStoragedJsons,
-  PauseAllStoragedJsonsDeleting,
-  ResumeAllStoragedJsonsDeleting,
-  CancelAllStoragedJsonsDeleting,
   StorageAvailableJson,
   DeleteStoragedJson,
 } from "../../wailsjs/go/services/JsonDataSerializerAndStoragerService";
@@ -43,45 +37,9 @@ async function storageAllAvaliableJsonsButtonOnClick() {
   await fillStoragedJsonsDiv();
 }
 
-async function pauseAllAvaliableJsonsStoragingButtonOnClick() {
-  showStoragedJsons.value = false;
-  await PauseAllAvailableJsonsStoraging(availableJsons.value);
-  await fillStoragedJsonsDiv();
-}
-
-async function resumeAllAvaliableJsonsStoragingButtonOnClick() {
-  showStoragedJsons.value = false;
-  await ResumeAllAvailableJsonsStoraging(availableJsons.value);
-  await fillStoragedJsonsDiv();
-}
-
-async function cancelAllAvaliableJsonsStoragingButtonOnClick() {
-  showStoragedJsons.value = false;
-  await CancelAllAvailableJsonsStoraging(availableJsons.value);
-  await fillStoragedJsonsDiv();
-}
-
 async function deleteAllStoragedJsonsButtonOnClick() {
   showStoragedJsons.value = false;
   await DeleteAllStoragedJsons(storagedJsons.value);
-  await fillStoragedJsonsDiv();
-}
-
-async function pauseAllStoragedJsonsDeletingButtonOnClick() {
-  showStoragedJsons.value = false;
-  await PauseAllStoragedJsonsDeleting(storagedJsons.value);
-  await fillStoragedJsonsDiv();
-}
-
-async function resumeAllStoragedJsonsDeletingButtonOnClick() {
-  showStoragedJsons.value = false;
-  await ResumeAllStoragedJsonsDeleting(storagedJsons.value);
-  await fillStoragedJsonsDiv();
-}
-
-async function cancelAllStoragedJsonsDeletingButtonOnClick() {
-  showStoragedJsons.value = false;
-  await CancelAllStoragedJsonsDeleting(storagedJsons.value);
   await fillStoragedJsonsDiv();
 }
 
@@ -196,7 +154,7 @@ watch([availableJsonsSearchQuery], () => {
     class="d-flex flex-column justify-content-center align-items-center mt-3 p-3 gap-3 bg-dark"
   >
     <div
-      class="d-flex justify-content-center align-items-center p-2 gap-1 w-100 bg-black"
+      class="d-flex justify-content-center align-items-center p-2 gap-5 w-100 bg-black"
     >
       <button
         class="btn btn-md btn-secondary fs-7"
@@ -206,45 +164,9 @@ watch([availableJsonsSearchQuery], () => {
       </button>
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="resumeAllAvaliableJsonsStoragingButtonOnClick()"
-      >
-        Resume all Jsons storaging
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="pauseAllAvaliableJsonsStoragingButtonOnClick()"
-      >
-        Pause all Jsons storaging
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="cancelAllAvaliableJsonsStoragingButtonOnClick()"
-      >
-        Cancel all Jsons storaging
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
         @click="deleteAllStoragedJsonsButtonOnClick()"
       >
         Delete all storaged Jsons
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="resumeAllStoragedJsonsDeletingButtonOnClick()"
-      >
-        Resume all storaged Jsons deleting
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="pauseAllStoragedJsonsDeletingButtonOnClick()"
-      >
-        Pause all storaged Jsons deleting
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="cancelAllStoragedJsonsDeletingButtonOnClick()"
-      >
-        Cancel all storaged Jsons deleting
       </button>
     </div>
 
