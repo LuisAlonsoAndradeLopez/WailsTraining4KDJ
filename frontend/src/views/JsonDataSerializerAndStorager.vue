@@ -11,6 +11,10 @@ import {
   PauseAllAvailableJsonsStoraging,
   ResumeAllAvailableJsonsStoraging,
   CancelAllAvailableJsonsStoraging,
+  DeleteAllStoragedJsons,
+  PauseAllStoragedJsonsDeleting,
+  ResumeAllStoragedJsonsDeleting,
+  CancelAllStoragedJsonsDeleting,
   StorageAvailableJson,
   DeleteStoragedJson,
 } from "../../wailsjs/go/services/JsonDataSerializerAndStoragerService";
@@ -29,24 +33,56 @@ const findStoragedJsonsTextAreaPlaceholder = ref(
 );
 
 //Consts for handle hide-show behabiours between GUI components
-const theAvailableJsonsAreFetching = ref(false);
-const theStoragedJsonsAreFetching = ref(false);
+const showAvailableJsons = ref(false);
+const showStoragedJsons = ref(false);
 
 //Buttons onclick functions
 async function storageAllAvaliableJsonsButtonOnClick() {
-  await StorageAllAvailableJsons(availableJsons);
+  showStoragedJsons.value = false;
+  await StorageAllAvailableJsons(availableJsons.value);
+  await fillStoragedJsonsDiv();
 }
 
 async function pauseAllAvaliableJsonsStoragingButtonOnClick() {
-  await PauseAllAvailableJsonsStoraging(availableJsons);
+  showStoragedJsons.value = false;
+  await PauseAllAvailableJsonsStoraging(availableJsons.value);
+  await fillStoragedJsonsDiv();
 }
 
 async function resumeAllAvaliableJsonsStoragingButtonOnClick() {
-  await ResumeAllAvailableJsonsStoraging(availableJsons);
+  showStoragedJsons.value = false;
+  await ResumeAllAvailableJsonsStoraging(availableJsons.value);
+  await fillStoragedJsonsDiv();
 }
 
 async function cancelAllAvaliableJsonsStoragingButtonOnClick() {
-  await CancelAllAvailableJsonsStoraging(availableJsons);
+  showStoragedJsons.value = false;
+  await CancelAllAvailableJsonsStoraging(availableJsons.value);
+  await fillStoragedJsonsDiv();
+}
+
+async function deleteAllStoragedJsonsButtonOnClick() {
+  showStoragedJsons.value = false;
+  await DeleteAllStoragedJsons(storagedJsons.value);
+  await fillStoragedJsonsDiv();
+}
+
+async function pauseAllStoragedJsonsDeletingButtonOnClick() {
+  showStoragedJsons.value = false;
+  await PauseAllStoragedJsonsDeleting(storagedJsons.value);
+  await fillStoragedJsonsDiv();
+}
+
+async function resumeAllStoragedJsonsDeletingButtonOnClick() {
+  showStoragedJsons.value = false;
+  await ResumeAllStoragedJsonsDeleting(storagedJsons.value);
+  await fillStoragedJsonsDiv();
+}
+
+async function cancelAllStoragedJsonsDeletingButtonOnClick() {
+  showStoragedJsons.value = false;
+  await CancelAllStoragedJsonsDeleting(storagedJsons.value);
+  await fillStoragedJsonsDiv();
 }
 
 async function storageAvailableJsonButtonOnClick(comprobanteInJson) {
@@ -61,19 +97,19 @@ async function deleteStoragedJsonButtonOnClick(comprobanteInJson) {
 
 //Auxiliary funcions
 async function fillAvailableJsonsDiv() {
-  theAvailableJsonsAreFetching.value = true;
+  showAvailableJsons.value = false;
   const fetchedAvailableJsons = await FetchAvailableJsons();
   availableJsons.value = fetchedAvailableJsons;
   filteredAvailableJsons.value = fetchedAvailableJsons;
-  theAvailableJsonsAreFetching.value = false;
+  showAvailableJsons.value = true;
 }
 
 async function fillStoragedJsonsDiv() {
-  theStoragedJsonsAreFetching.value = true;
+  showStoragedJsons.value = false;
   const fetchedStoragedJsons = await FetchStoragedJsons();
   storagedJsons.value = fetchedStoragedJsons;
   filteredStoragedJsons.value = fetchedStoragedJsons;
-  theStoragedJsonsAreFetching.value = false;
+  showStoragedJsons.value = true;
 }
 
 function filterAvailableJsons() {
@@ -97,7 +133,9 @@ function filterAvailableJsons() {
   if (!jsonQuery) {
     const text = queryText.toLowerCase();
     filteredAvailableJsons.value = availableJsons.value.filter((json) =>
-      Object.values(json).some((v) => v?.toString().toLowerCase().includes(text))
+      Object.values(json).some((v) =>
+        v?.toString().toLowerCase().includes(text)
+      )
     );
     return;
   }
@@ -144,10 +182,7 @@ function filterAvailableJsons() {
 
 //Vue.js functions
 onMounted(async () => {
-  await Promise.all([
-    fillAvailableJsonsDiv(),
-    fillStoragedJsonsDiv()
-  ]);
+  await Promise.all([fillAvailableJsonsDiv(), fillStoragedJsonsDiv()]);
 });
 
 watch([availableJsonsSearchQuery], () => {
@@ -161,13 +196,13 @@ watch([availableJsonsSearchQuery], () => {
     class="d-flex flex-column justify-content-center align-items-center mt-3 p-3 gap-3 bg-dark"
   >
     <div
-      class="d-flex justify-content-center align-items-center p-2 gap-5 w-100 bg-black"
+      class="d-flex justify-content-center align-items-center p-2 gap-1 w-100 bg-black"
     >
       <button
         class="btn btn-md btn-secondary fs-7"
         @click="storageAllAvaliableJsonsButtonOnClick()"
       >
-        Storage all Jsons
+        Storage all available Jsons
       </button>
       <button
         class="btn btn-md btn-secondary fs-7"
@@ -187,6 +222,30 @@ watch([availableJsonsSearchQuery], () => {
       >
         Cancel all Jsons storaging
       </button>
+      <button
+        class="btn btn-md btn-secondary fs-7"
+        @click="deleteAllStoragedJsonsButtonOnClick()"
+      >
+        Delete all storaged Jsons
+      </button>
+      <button
+        class="btn btn-md btn-secondary fs-7"
+        @click="resumeAllStoragedJsonsDeletingButtonOnClick()"
+      >
+        Resume all storaged Jsons deleting
+      </button>
+      <button
+        class="btn btn-md btn-secondary fs-7"
+        @click="pauseAllStoragedJsonsDeletingButtonOnClick()"
+      >
+        Pause all storaged Jsons deleting
+      </button>
+      <button
+        class="btn btn-md btn-secondary fs-7"
+        @click="cancelAllStoragedJsonsDeletingButtonOnClick()"
+      >
+        Cancel all storaged Jsons deleting
+      </button>
     </div>
 
     <div
@@ -201,7 +260,7 @@ watch([availableJsonsSearchQuery], () => {
       />
       <h3 class="fw-bold fs-4">Jsons available for storage</h3>
       <div
-        v-if="theAvailableJsonsAreFetching"
+        v-if="!showAvailableJsons"
         class="d-flex justify-content-center align-items-center w-100 h-100"
       >
         <div
@@ -220,9 +279,11 @@ watch([availableJsonsSearchQuery], () => {
           :key="rowIndex"
           class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
-          <textarea class="form form-control fs-3 lh-1 json-textarea" disabled>{{
-            comprobanteInJson
-          }}</textarea>
+          <textarea
+            class="form form-control fs-3 lh-1 json-textarea"
+            disabled
+            >{{ comprobanteInJson }}</textarea
+          >
           <button
             class="btn btn-lg btn-primary"
             @click="storageAvailableJsonButtonOnClick(comprobanteInJson)"
@@ -245,7 +306,7 @@ watch([availableJsonsSearchQuery], () => {
       />
       <h3 class="fw-bold fs-4">Storaged Jsons</h3>
       <div
-        v-if="theStoragedJsonsAreFetching"
+        v-if="!showStoragedJsons"
         class="d-flex justify-content-center align-items-center w-100 h-100"
       >
         <div
@@ -264,9 +325,11 @@ watch([availableJsonsSearchQuery], () => {
           :key="rowIndex"
           class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
-          <textarea class="form form-control fs-3 lh-1 json-textarea" disabled>{{
-            comprobanteInJson
-          }}</textarea>
+          <textarea
+            class="form form-control fs-3 lh-1 json-textarea"
+            disabled
+            >{{ comprobanteInJson }}</textarea
+          >
           <button
             class="btn btn-lg btn-primary"
             @click="deleteStoragedJsonButtonOnClick(comprobanteInJson)"

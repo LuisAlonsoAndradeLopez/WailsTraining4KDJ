@@ -5,6 +5,10 @@ import {context} from '../models';
 
 export function CancelAllAvailableJsonsStoraging():Promise<void>;
 
+export function CancelAllStoragedJsonsDeleting():Promise<void>;
+
+export function DeleteAllStoragedJsons(arg1:Array<Record<string, any>>):Promise<void>;
+
 export function DeleteStoragedJson(arg1:Record<string, any>):Promise<void>;
 
 export function FetchAvailableJsons():Promise<Array<comprobante.Comprobante>>;
@@ -13,10 +17,14 @@ export function FetchStoragedJsons():Promise<Array<comprobante.Comprobante>>;
 
 export function PauseAllAvailableJsonsStoraging():Promise<void>;
 
+export function PauseAllStoragedJsonsDeleting():Promise<void>;
+
 export function ResumeAllAvailableJsonsStoraging():Promise<void>;
+
+export function ResumeAllStoragedJsonsDeleting():Promise<void>;
 
 export function SetContext(arg1:context.Context):Promise<void>;
 
-export function StorageAllAvailableJsons(arg1:Array<string>):Promise<void>;
+export function StorageAllAvailableJsons(arg1:Array<Record<string, any>>):Promise<void>;
 
 export function StorageAvailableJson(arg1:Record<string, any>):Promise<void>;

@@ -6,6 +6,14 @@ export function CancelAllAvailableJsonsStoraging() {
   return window['go']['services']['JsonDataSerializerAndStoragerService']['CancelAllAvailableJsonsStoraging']();
 }
 
+export function CancelAllStoragedJsonsDeleting() {
+  return window['go']['services']['JsonDataSerializerAndStoragerService']['CancelAllStoragedJsonsDeleting']();
+}
+
+export function DeleteAllStoragedJsons(arg1) {
+  return window['go']['services']['JsonDataSerializerAndStoragerService']['DeleteAllStoragedJsons'](arg1);
+}
+
 export function DeleteStoragedJson(arg1) {
   return window['go']['services']['JsonDataSerializerAndStoragerService']['DeleteStoragedJson'](arg1);
 }
@@ -22,8 +30,16 @@ export function PauseAllAvailableJsonsStoraging() {
   return window['go']['services']['JsonDataSerializerAndStoragerService']['PauseAllAvailableJsonsStoraging']();
 }
 
+export function PauseAllStoragedJsonsDeleting() {
+  return window['go']['services']['JsonDataSerializerAndStoragerService']['PauseAllStoragedJsonsDeleting']();
+}
+
 export function ResumeAllAvailableJsonsStoraging() {
   return window['go']['services']['JsonDataSerializerAndStoragerService']['ResumeAllAvailableJsonsStoraging']();
+}
+
+export function ResumeAllStoragedJsonsDeleting() {
+  return window['go']['services']['JsonDataSerializerAndStoragerService']['ResumeAllStoragedJsonsDeleting']();
 }
 
 export function SetContext(arg1) {
