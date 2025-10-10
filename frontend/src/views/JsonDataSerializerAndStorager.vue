@@ -7,10 +7,10 @@ import ViewNavigator from "../components/ViewNavigator.vue";
 import {
   FetchAvailableJsons,
   FetchStoragedJsons,
-  //  StartAllStoragings,
-  //  PauseAllStoragings,
-  //  ResumeAllStoragings,
-  //  CancelAllStoragings,
+  StorageAllAvailableJsons,
+  PauseAllAvailableJsonsStoraging,
+  ResumeAllAvailableJsonsStoraging,
+  CancelAllAvailableJsonsStoraging,
   StorageAvailableJson,
   DeleteStoragedJson,
 } from "../../wailsjs/go/services/JsonDataSerializerAndStoragerService";
@@ -33,13 +33,21 @@ const theAvailableJsonsAreFetching = ref(false);
 const theStoragedJsonsAreFetching = ref(false);
 
 //Buttons onclick functions
-async function storageAllAvaliableJsonsButtonOnClick() {}
+async function storageAllAvaliableJsonsButtonOnClick() {
+  await StorageAllAvailableJsons(availableJsons);
+}
 
-async function pauseAllAvaliableJsonsStoragingButtonOnClick() {}
+async function pauseAllAvaliableJsonsStoragingButtonOnClick() {
+  await PauseAllAvailableJsonsStoraging(availableJsons);
+}
 
-async function resumeAllAvaliableJsonsStoragingButtonOnClick() {}
+async function resumeAllAvaliableJsonsStoragingButtonOnClick() {
+  await ResumeAllAvailableJsonsStoraging(availableJsons);
+}
 
-async function cancelAllAvaliableJsonsStoragingButtonOnClick() {}
+async function cancelAllAvaliableJsonsStoragingButtonOnClick() {
+  await CancelAllAvailableJsonsStoraging(availableJsons);
+}
 
 async function storageAvailableJsonButtonOnClick(comprobanteInJson) {
   await StorageAvailableJson(comprobanteInJson);
