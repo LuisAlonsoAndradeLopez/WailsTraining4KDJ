@@ -32,10 +32,10 @@ type jsonStoragingTask struct {
 	json map[string]interface{}
 
 	// control
-	mutex         sync.Mutex // protects paused/cancelled/storaged/err
-	condition     *sync.Cond // condition for pause/resume
-	err           error
-	downloadState string //queued, storaging, paused, cancelled, storaged, error
+	mutex          sync.Mutex // protects paused/cancelled/storaged/err
+	condition      *sync.Cond // condition for pause/resume
+	err            error
+	storagingState string //queued, storaging, paused, cancelled, storaged, error
 }
 
 type jsonDeletingTask struct {
@@ -71,8 +71,8 @@ func (jdsass *JsonDataSerializerAndStoragerService) getOrCreateJsonStoragingTask
 	}
 
 	jst := &jsonStoragingTask{
-		json:          jsonData,
-		downloadState: "queued",
+		json:           jsonData,
+		storagingState: "queued",
 	}
 
 	jst.condition = sync.NewCond(&jst.mutex)
@@ -101,15 +101,12 @@ func (jdsass *JsonDataSerializerAndStoragerService) getOrCreateJsonDeletingTask(
 // jsonStoragingTasksWorker does the actual download and supports pause/resume/cancel
 func (jdsass *JsonDataSerializerAndStoragerService) jsonStoragingTasksWorker(jst *jsonStoragingTask) {
 	jst.mutex.Lock()
-	switch jst.downloadState {
-	case "cancelled":
-		jst.mutex.Unlock()
-		return
-	case "completed":
+	switch jst.storagingState {
+	case "cancelled", "completed":
 		jst.mutex.Unlock()
 		return
 	default:
-		jst.downloadState = "storaging"
+		jst.storagingState = "storaging"
 	}
 	jst.mutex.Unlock()
 
@@ -117,13 +114,13 @@ func (jdsass *JsonDataSerializerAndStoragerService) jsonStoragingTasksWorker(jst
 	if err != nil {
 		jst.mutex.Lock()
 		jst.err = err
-		jst.downloadState = "error"
+		jst.storagingState = "error"
 		jst.mutex.Unlock()
 		return
 	}
 
 	jst.mutex.Lock()
-	jst.downloadState = "storaged"
+	jst.storagingState = "storaged"
 	jst.mutex.Unlock()
 }
 
@@ -139,15 +136,17 @@ func (jdsass *JsonDataSerializerAndStoragerService) jsonDeletingTasksWorker(jdt 
 	jdt.mutex.Unlock()
 
 	err := jdsass.DeleteStoragedJson(jdt.json)
-	jdt.mutex.Lock()
-	defer jdt.mutex.Unlock()
-
 	if err != nil {
+		jdt.mutex.Lock()
 		jdt.err = err
 		jdt.deletingState = "error"
-	} else {
-		jdt.deletingState = "deleted"
+		jdt.mutex.Unlock()
+		return
 	}
+
+	jdt.mutex.Lock()
+	jdt.deletingState = "deleted"
+	jdt.mutex.Unlock()
 }
 
 // Functions for use in JsonDataSerializerAndStorager.vue
@@ -203,11 +202,7 @@ func (jdsass *JsonDataSerializerAndStoragerService) StorageAllAvailableJsons(jso
 		jst := jdsass.getOrCreateJsonStoragingTask(json)
 
 		jst.mutex.Lock()
-		if jst.downloadState == "completed" {
-			jst.mutex.Unlock()
-			continue
-		}
-		jst.downloadState = "queued"
+		jst.storagingState = "queued"
 		jst.mutex.Unlock()
 
 		jdsass.jsonsStoragingTasksWaitGroup.Add(1)
@@ -223,10 +218,17 @@ func (jdsass *JsonDataSerializerAndStoragerService) StorageAllAvailableJsons(jso
 			}
 			defer func() { <-semaphore }()
 
+			j.mutex.Lock()
+			if j.storagingState == "queued" {
+				j.storagingState = "storaging"
+			}
+			j.mutex.Unlock()
+
 			jdsass.jsonStoragingTasksWorker(j)
 		}(jst)
 	}
 
+	jdsass.jsonsStoragingTasksWaitGroup.Wait()
 	return nil
 }
 
@@ -234,8 +236,8 @@ func (jdsass *JsonDataSerializerAndStoragerService) PauseAllAvailableJsonsStorag
 	jdsass.jsonsStoragingTasks.Range(func(_, v any) bool {
 		task := v.(*jsonStoragingTask)
 		task.mutex.Lock()
-		if task.downloadState == "storaging" {
-			task.downloadState = "paused"
+		if task.storagingState == "storaging" {
+			task.storagingState = "paused"
 		}
 		task.mutex.Unlock()
 		return true
@@ -246,8 +248,8 @@ func (jdsass *JsonDataSerializerAndStoragerService) ResumeAllAvailableJsonsStora
 	jdsass.jsonsStoragingTasks.Range(func(_, v any) bool {
 		task := v.(*jsonStoragingTask)
 		task.mutex.Lock()
-		if task.downloadState == "paused" {
-			task.downloadState = "queued"
+		if task.storagingState == "paused" {
+			task.storagingState = "queued"
 			// Optionally: relaunch the worker
 			go jdsass.jsonStoragingTasksWorker(task)
 		}
@@ -260,8 +262,8 @@ func (jdsass *JsonDataSerializerAndStoragerService) CancelAllAvailableJsonsStora
 	jdsass.jsonsStoragingTasks.Range(func(_, v any) bool {
 		task := v.(*jsonStoragingTask)
 		task.mutex.Lock()
-		if task.downloadState == "storaging" || task.downloadState == "queued" {
-			task.downloadState = "cancelled"
+		if task.storagingState == "storaging" || task.storagingState == "queued" {
+			task.storagingState = "cancelled"
 		}
 		task.mutex.Unlock()
 		return true
@@ -269,17 +271,12 @@ func (jdsass *JsonDataSerializerAndStoragerService) CancelAllAvailableJsonsStora
 }
 
 func (jdsass *JsonDataSerializerAndStoragerService) DeleteAllStoragedJsons(jsons []map[string]interface{}) error {
-	// Create a fresh semaphore for this batch
 	semaphore := make(chan struct{}, jdsass.maxWorkers)
 
 	for _, json := range jsons {
 		jdt := jdsass.getOrCreateJsonDeletingTask(json)
 
 		jdt.mutex.Lock()
-		if jdt.deletingState == "deleted" {
-			jdt.mutex.Unlock()
-			continue
-		}
 		jdt.deletingState = "queued"
 		jdt.mutex.Unlock()
 
@@ -287,7 +284,7 @@ func (jdsass *JsonDataSerializerAndStoragerService) DeleteAllStoragedJsons(jsons
 		go func(j *jsonDeletingTask) {
 			defer jdsass.jsonsDeletingTasksWaitGroup.Done()
 
-			// acquire semaphore
+			// Acquire semaphore
 			select {
 			case semaphore <- struct{}{}:
 				// got slot
@@ -296,10 +293,18 @@ func (jdsass *JsonDataSerializerAndStoragerService) DeleteAllStoragedJsons(jsons
 			}
 			defer func() { <-semaphore }()
 
+			j.mutex.Lock()
+			if j.deletingState == "queued" {
+				j.deletingState = "deleting"
+			}
+			j.mutex.Unlock()
+
 			jdsass.jsonDeletingTasksWorker(j)
 		}(jdt)
 	}
 
+	// Wait for all deleting tasks to finish
+	jdsass.jsonsDeletingTasksWaitGroup.Wait()
 	return nil
 }
 
