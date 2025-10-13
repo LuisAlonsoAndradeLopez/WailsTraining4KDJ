@@ -21,8 +21,8 @@ function goToBooksManager() {
   changeView("BooksManager");
 }
 
-function goToJsonDataSerializerAndStorager() {
-  changeView("JsonDataSerializerAndStorager");
+function goToComprobantesDataSerializerAndStorager() {
+  changeView("ComprobantesDataSerializerAndStorager");
 }
 </script>
 
@@ -45,7 +45,7 @@ function goToJsonDataSerializerAndStorager() {
     <button class="btn btn-dark btn-md border" @click="goToBooksManager">
       Go to Books Manager
     </button>
-    <button class="btn btn-dark btn-md border" @click="goToJsonDataSerializerAndStorager">
+    <button class="btn btn-dark btn-md border" @click="goToComprobantesDataSerializerAndStorager">
       Go to Files Downloader
     </button>
   </div>

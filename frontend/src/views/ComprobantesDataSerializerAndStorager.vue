@@ -1,4 +1,3 @@
-//TODO: Execute the button storageComprobante
 <script setup>
 import { onMounted, ref, watch } from "vue";
 
@@ -11,7 +10,7 @@ import {
   DeleteAllStoragedJsons,
   StorageAvailableJson,
   DeleteStoragedJson,
-} from "../../wailsjs/go/services/JsonDataSerializerAndStoragerService";
+} from "../../wailsjs/go/services/ComprobantesDataSerializerAndStoragerService";
 
 const availableJsons = ref([]);
 const filteredAvailableJsons = ref([]);

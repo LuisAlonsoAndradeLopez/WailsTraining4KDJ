@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import MainMenu from '../views/MainMenu.vue'
 import BooksManager from '../views/BooksManager.vue'
-import JsonDataSerializerAndStorager from '../views/JsonDataSerializerAndStorager.vue'
+import ComprobantesDataSerializerAndStorager from '../views/ComprobantesDataSerializerAndStorager.vue'
 import RESTApiTester from '../views/RESTApiTester.vue'
 import SOAPApiTester from '../views/SOAPApiTester.vue'
 import UsersManager from '../views/UsersManager.vue'
@@ -19,8 +19,8 @@ const routes = [
   },
   {
     path: '/files-downloader',
-    name: 'JsonDataSerializerAndStorager',
-    component: JsonDataSerializerAndStorager
+    name: 'ComprobantesDataSerializerAndStorager',
+    component: ComprobantesDataSerializerAndStorager
   },
   {
     path: '/rest-api-tester',
