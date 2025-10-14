@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 
 	bolt "go.etcd.io/bbolt"
@@ -14,144 +16,90 @@ import (
 	"github.com/SaulEnriqueMR/kore-models/models/comprobante"
 )
 
-type ComprobanteDataSerializerAndStoragerService struct {
+type ComprobantesDataSerializerAndStoragerService struct {
 	bboltDb *bolt.DB
 	ctx     context.Context
-
-	// concurrency controls
-	maxWorkers int
-
-	// Comprobantes registry
-	availableComprobantesFetchingTasks          sync.Map
-	availableComprobantesFetchingTasksWaitGroup sync.WaitGroup
 }
 
-type availableComprobanteFetchingTask struct {
-	comprobante comprobante.Comprobante
-
-	// control
-	mutex         sync.Mutex // protects paused/cancelled/fetched/err
-	condition     *sync.Cond // condition for pause/resume
-	err           error
-	fetchingState string //queued, fetching, fetched, error
-}
-
-func NewComprobanteDataSerializerAndStoragerService(db *bolt.DB) *ComprobanteDataSerializerAndStoragerService {
-	s := &ComprobanteDataSerializerAndStoragerService{
-		bboltDb:    db,
-		maxWorkers: 20, // configurable concurrency
+func NewComprobantesDataSerializerAndStoragerService(db *bolt.DB) *ComprobantesDataSerializerAndStoragerService {
+	s := &ComprobantesDataSerializerAndStoragerService{
+		bboltDb: db,
 	}
 	return s
 }
 
 // Auxiliary fuctions
 // This function is only for use in app.go file
-func (jdsass *ComprobanteDataSerializerAndStoragerService) SetContext(ctx context.Context) {
-	jdsass.ctx = ctx
-}
-
-func (jdsass *ComprobanteDataSerializerAndStoragerService) getOrCreateAvailableComprobanteFetchingTask(comprobanteData comprobante.Comprobante) *availableComprobanteFetchingTask {
-	if v, ok := jdsass.availableComprobantesFetchingTasks.Load(comprobanteData); ok {
-		return v.(*availableComprobanteFetchingTask)
-	}
-
-	acft := &availableComprobanteFetchingTask{
-		comprobante:   comprobanteData,
-		fetchingState: "queued",
-	}
-
-	acft.condition = sync.NewCond(&acft.mutex)
-	actual, _ := jdsass.availableComprobantesFetchingTasks.LoadOrStore(comprobanteData, acft)
-	return actual.(*availableComprobanteFetchingTask)
-}
-
-// availableComprobanteFetchingTasksWorker does the actual download and supports pause/resume/cancel
-func (jdsass *ComprobanteDataSerializerAndStoragerService) availableComprobanteFetchingTasksWorker(acft *availableComprobanteFetchingTask) {
-	acft.mutex.Lock()
-	switch acft.fetchingState {
-	case "completed":
-		acft.mutex.Unlock()
-		return
-	default:
-		acft.fetchingState = "fetching"
-	}
-	acft.mutex.Unlock()
-
-	err := jdsass.StorageAvailableComprobante(acft.comprobante)
-	if err != nil {
-		acft.mutex.Lock()
-		acft.err = err
-		acft.fetchingState = "error"
-		acft.mutex.Unlock()
-		return
-	}
-
-	acft.mutex.Lock()
-	acft.fetchingState = "fetched"
-	acft.mutex.Unlock()
+func (cdsass *ComprobantesDataSerializerAndStoragerService) SetContext(ctx context.Context) {
+	cdsass.ctx = ctx
 }
 
 // Functions for use in ComprobanteDataSerializerAndStorager.vue
-func (jdsass *ComprobanteDataSerializerAndStoragerService) FetchAvailableComprobantes() ([]comprobante.Comprobante, error) {
+func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableComprobantes() ([]comprobante.Comprobante, error) {
 	rootPath := "C:/Users/wmike/Documents/Nobeno Zemeztre/Prrrrrrrrrrrrácticas de Ingeniebría de Software/2025"
-	var xmlsPaths []string
 
+	var xmlPaths []string
 	err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if !d.IsDir() && filepath.Ext(path) == ".xml" {
-			xmlsPaths = append(xmlsPaths, path)
+			xmlPaths = append(xmlPaths, path)
 		}
-
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("walkdir failed: %w", err)
 	}
 
-	jobs := make(chan string)
-	results := make(chan comprobante.Comprobante)
-	errs := make(chan error)
+	numWorkers := runtime.NumCPU() * 2
 
-	go func() {
-		for _, path := range xmlsPaths {
-			jobs <- path
-		}
-		close(jobs)
-	}()
+	jobs := make(chan string, numWorkers*2)
+	results := make(chan comprobante.Comprobante, numWorkers*2)
+	errs := make(chan error, numWorkers*2)
 
-	for i := 0; i < jdsass.maxWorkers; i++ {
-		jdsass.availableComprobantesFetchingTasksWaitGroup.Add(1)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
 		go func() {
-			defer jdsass.availableComprobantesFetchingTasksWaitGroup.Done()
+			defer wg.Done()
 			for path := range jobs {
 				data, err := os.ReadFile(path)
 				if err != nil {
-					errs <- fmt.Errorf("read %s: %w", path, err)
+					select {
+					case errs <- fmt.Errorf("read %s: %w", path, err):
+					default:
+					}
 					continue
 				}
 
 				comp, err := comprobante.SerializeComprobanteFromXml(data)
 				if err != nil {
-					errs <- fmt.Errorf("unmarshal %s: %w", path, err)
+					select {
+					case errs <- fmt.Errorf("parse %s: %w", path, err):
+					default:
+					}
 					continue
 				}
 
-				task := jdsass.getOrCreateAvailableComprobanteFetchingTask(comp)
-				jdsass.availableComprobantesFetchingTasksWaitGroup.Add(1)
-				go func(t *availableComprobanteFetchingTask) {
-					defer jdsass.availableComprobantesFetchingTasksWaitGroup.Done()
-					jdsass.availableComprobanteFetchingTasksWorker(t)
-				}(task)
-
-				results <- comp
+				select {
+				case results <- comp:
+				default:
+				}
 			}
 		}()
 	}
 
 	go func() {
-		jdsass.availableComprobantesFetchingTasksWaitGroup.Wait()
+		for _, path := range xmlPaths {
+			jobs <- path
+		}
+		close(jobs)
+	}()
+
+	go func() {
+		wg.Wait()
 		close(results)
 		close(errs)
 	}()
@@ -161,19 +109,37 @@ func (jdsass *ComprobanteDataSerializerAndStoragerService) FetchAvailableComprob
 		comprobantes = append(comprobantes, r)
 	}
 
-	jdsass.availableComprobantesFetchingTasksWaitGroup.Wait()
+	var allErrs []string
+	for e := range errs {
+		allErrs = append(allErrs, e.Error())
+	}
+
+	if len(allErrs) > 0 {
+		return comprobantes, fmt.Errorf("some errors occurred: %s", strings.Join(allErrs, "; "))
+	}
+
 	return comprobantes, nil
 }
 
-func (jdsass *ComprobanteDataSerializerAndStoragerService) FetchStoragedComprobantes() ([]comprobante.Comprobante, error) {
+func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchStoragedComprobantes() ([]comprobante.Comprobante, error) {
 	var comprobantes []comprobante.Comprobante
 
-	err := jdsass.bboltDb.View(func(tx *bolt.Tx) error {
+	err := cdsass.bboltDb.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("Comprobantes"))
+		if bucket == nil {
+			return nil // no bucket yet
+		}
+
 		return bucket.ForEach(func(_, comprobanteInBytes []byte) error {
-			comp, err := comprobante.SerializeComprobanteFromXml(comprobanteInBytes)
-			if err != nil {
-				return err
+			if len(comprobanteInBytes) == 0 {
+				return nil
+			}
+
+			var comp comprobante.Comprobante
+			if err := json.Unmarshal(comprobanteInBytes, &comp); err != nil {
+				// log error but continue
+				fmt.Printf("Failed to unmarshal stored comprobante JSON: %v\n", err)
+				return nil
 			}
 
 			comprobantes = append(comprobantes, comp)
@@ -184,33 +150,124 @@ func (jdsass *ComprobanteDataSerializerAndStoragerService) FetchStoragedComproba
 	return comprobantes, err
 }
 
-func (jdsass *ComprobanteDataSerializerAndStoragerService) StorageAllAvailableComprobantes(comprobantes []map[string]interface{}) error {
+func (s *ComprobantesDataSerializerAndStoragerService) StorageAllAvailableComprobantes(comprobantes []comprobante.Comprobante) error {
+	if len(comprobantes) == 0 {
+		return nil
+	}
+
+	err := s.bboltDb.Batch(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte("Comprobantes"))
+		if err != nil {
+			return fmt.Errorf("bucket creation failed: %w", err)
+		}
+
+		for _, c := range comprobantes {
+			comprobanteInBytes, err := json.Marshal(c)
+			if err != nil {
+				return fmt.Errorf("marshal failed: %w", err)
+			}
+
+			var uuid string
+			switch {
+			case c.Comprobante40 != nil:
+				uuid = c.Comprobante40.Uuid
+			case c.Comprobante33 != nil:
+				uuid = c.Comprobante33.Uuid
+			case c.Comprobante32 != nil:
+				uuid = c.Comprobante32.Uuid
+			default:
+				return fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
+			}
+
+			if uuid == "" {
+				return fmt.Errorf("uuid is empty for comprobante")
+			}
+
+			if err := b.Put([]byte(uuid), comprobanteInBytes); err != nil {
+				return fmt.Errorf("write failed for UUID %s: %w", uuid, err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("batch storage failed: %w", err)
+	}
 
 	return nil
 }
 
-func (jdsass *ComprobanteDataSerializerAndStoragerService) DeleteAllStoragedComprobantes(comprobantes []map[string]interface{}) error {
+func (s *ComprobantesDataSerializerAndStoragerService) DeleteAllStoragedComprobantes(comprobantes []comprobante.Comprobante) error {
+	if len(comprobantes) == 0 {
+		return nil
+	}
+
+	err := s.bboltDb.Batch(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Comprobantes"))
+		if b == nil {
+			return fmt.Errorf("bucket 'Comprobantes' does not exist")
+		}
+
+		for _, c := range comprobantes {
+			var uuid string
+			switch {
+			case c.Comprobante40 != nil:
+				uuid = c.Comprobante40.Uuid
+			case c.Comprobante33 != nil:
+				uuid = c.Comprobante33.Uuid
+			case c.Comprobante32 != nil:
+				uuid = c.Comprobante32.Uuid
+			default:
+				return fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
+			}
+
+			if uuid == "" {
+				continue
+			}
+
+			if b.Get([]byte(uuid)) == nil {
+				continue
+			}
+
+			if err := b.Delete([]byte(uuid)); err != nil {
+				return fmt.Errorf("delete failed for UUID %s: %w", uuid, err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("batch delete failed: %w", err)
+	}
 
 	return nil
 }
 
-func (jdsass *ComprobanteDataSerializerAndStoragerService) StorageAvailableComprobante(comprobante map[string]interface{}) error {
-	comprobanteInBytes, err := json.Marshal(comprobante)
+func (s *ComprobantesDataSerializerAndStoragerService) StorageAvailableComprobante(c comprobante.Comprobante) error {
+	comprobanteInBytes, err := json.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
 	}
 
-	comprobante40, ok := comprobante["Comprobante40"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("Comprobante40 field missing or invalid")
+	var uuid string
+	switch {
+	case c.Comprobante40 != nil:
+		uuid = c.Comprobante40.Uuid
+	case c.Comprobante33 != nil:
+		uuid = c.Comprobante33.Uuid
+	case c.Comprobante32 != nil:
+		uuid = c.Comprobante32.Uuid
+	default:
+		return fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
 	}
 
-	uuid, ok := comprobante40["Uuid"].(string)
-	if !ok {
-		return fmt.Errorf("Uuid field missing or invalid")
+	if uuid == "" {
+		return fmt.Errorf("uuid is empty for comprobante")
 	}
 
-	err = jdsass.bboltDb.Update(func(tx *bolt.Tx) error {
+	err = s.bboltDb.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("Comprobantes"))
 		if err != nil {
 			return fmt.Errorf("bucket creation failed: %w", err)
@@ -224,32 +281,29 @@ func (jdsass *ComprobanteDataSerializerAndStoragerService) StorageAvailableCompr
 	return nil
 }
 
-func (jdsass *ComprobanteDataSerializerAndStoragerService) DeleteStoragedComprobante(xmlConvertedToComprobante map[string]interface{}) error {
-	// Extract Comprobante40
-	comprobante40, ok := xmlConvertedToComprobante["Comprobante40"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("Comprobante40 field missing or invalid")
+func (cdsass *ComprobantesDataSerializerAndStoragerService) DeleteStoragedComprobante(c comprobante.Comprobante) error {
+	var uuid string
+	switch {
+	case c.Comprobante40 != nil:
+		uuid = c.Comprobante40.Uuid
+	case c.Comprobante33 != nil:
+		uuid = c.Comprobante33.Uuid
+	case c.Comprobante32 != nil:
+		uuid = c.Comprobante32.Uuid
+	default:
+		return fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
 	}
 
-	// Extract Uuid
-	uuid, ok := comprobante40["Uuid"].(string)
-	if !ok {
-		return fmt.Errorf("Uuid field missing or invalid")
-	}
-
-	// Delete entry from BoltDB
-	err := jdsass.bboltDb.Update(func(tx *bolt.Tx) error {
+	err := cdsass.bboltDb.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Comprobantes"))
 		if b == nil {
 			return fmt.Errorf("bucket 'Comprobantes' does not exist")
 		}
 
-		// Check if key exists
 		if b.Get([]byte(uuid)) == nil {
 			return fmt.Errorf("no record found with UUID: %s", uuid)
 		}
 
-		// Delete the key
 		return b.Delete([]byte(uuid))
 	})
 	if err != nil {

@@ -4,104 +4,103 @@ import { onMounted, ref, watch } from "vue";
 import ViewNavigator from "../components/ViewNavigator.vue";
 
 import {
-  FetchAvailableJsons,
-  FetchStoragedJsons,
-  StorageAllAvailableJsons,
-  DeleteAllStoragedJsons,
-  StorageAvailableJson,
-  DeleteStoragedJson,
+  FetchAvailableComprobantes,
+  FetchStoragedComprobantes,
+  StorageAllAvailableComprobantes,
+  DeleteAllStoragedComprobantes,
+  StorageAvailableComprobante,
+  DeleteStoragedComprobante,
 } from "../../wailsjs/go/services/ComprobantesDataSerializerAndStoragerService";
 
-const availableJsons = ref([]);
-const filteredAvailableJsons = ref([]);
-const availableJsonsSearchQuery = ref("");
-const findAvailableJsonsTextAreaPlaceholder = ref(
-  "Enter the search JSON query..."
+const availableComprobante = ref([]);
+const filteredAvailableComprobantes = ref([]);
+const availableComprobantesSearchQuery = ref("");
+const findAvailableComprobantesTextAreaPlaceholder = ref(
+  "Enter the search Comprobante query..."
 );
-const storagedJsons = ref([]);
-const filteredStoragedJsons = ref([]);
-const storagedJsonsSearchQuery = ref("");
-const findStoragedJsonsTextAreaPlaceholder = ref(
-  "Enter the search JSON query..."
+const storagedComprobantes = ref([]);
+const filteredStoragedComprobantes = ref([]);
+const storagedComprobantesSearchQuery = ref("");
+const findStoragedComprobantesTextAreaPlaceholder = ref(
+  "Enter the search Comprobante query..."
 );
 
 //Consts for handle hide-show behabiours between GUI components
-const showAvailableJsons = ref(false);
-const showStoragedJsons = ref(false);
+const showAvailableComprobantes = ref(false);
+const showStoragedComprobantes = ref(false);
 
 //Buttons onclick functions
-async function storageAllAvaliableJsonsButtonOnClick() {
-  showStoragedJsons.value = false;
-  await StorageAllAvailableJsons(availableJsons.value);
-  await fillStoragedJsonsDiv();
+async function storageAllAvaliableComprobantesButtonOnClick() {
+  showStoragedComprobantes.value = false;
+  await StorageAllAvailableComprobantes(availableComprobante.value);
+  await fillStoragedComprobantesDiv();
 }
 
-async function deleteAllStoragedJsonsButtonOnClick() {
-  showStoragedJsons.value = false;
-  await DeleteAllStoragedJsons(storagedJsons.value);
-  await fillStoragedJsonsDiv();
+async function deleteAllStoragedComprobantesButtonOnClick() {
+  showStoragedComprobantes.value = false;
+  await DeleteAllStoragedComprobantes(storagedComprobantes.value);
+  await fillStoragedComprobantesDiv();
 }
 
-async function storageAvailableJsonButtonOnClick(comprobanteInJson) {
-  await StorageAvailableJson(comprobanteInJson);
-  await fillStoragedJsonsDiv();
+async function storageAvailableComprobanteButtonOnClick(comprobanteInComprobante) {
+  await StorageAvailableComprobante(comprobanteInComprobante);
+  await fillStoragedComprobantesDiv();
 }
 
-async function deleteStoragedJsonButtonOnClick(comprobanteInJson) {
-  await DeleteStoragedJson(comprobanteInJson);
-  await fillStoragedJsonsDiv();
+async function deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante) {
+  await DeleteStoragedComprobante(comprobanteInComprobante);
+  await fillStoragedComprobantesDiv();
 }
 
 //Auxiliary funcions
-async function fillAvailableJsonsDiv() {
-  showAvailableJsons.value = false;
-  const fetchedAvailableJsons = await FetchAvailableJsons();
-  availableJsons.value = fetchedAvailableJsons;
-  filteredAvailableJsons.value = fetchedAvailableJsons;
-  showAvailableJsons.value = true;
+async function fillAvailableComprobantesDiv() {
+  showAvailableComprobantes.value = false;
+  const fetchedAvailableComprobantes = await FetchAvailableComprobantes();
+  availableComprobante.value = fetchedAvailableComprobantes;
+  filteredAvailableComprobantes.value = fetchedAvailableComprobantes;
+  showAvailableComprobantes.value = true;
 }
 
-async function fillStoragedJsonsDiv() {
-  showStoragedJsons.value = false;
-  const fetchedStoragedJsons = await FetchStoragedJsons();
-  storagedJsons.value = fetchedStoragedJsons;
-  filteredStoragedJsons.value = fetchedStoragedJsons;
-  showStoragedJsons.value = true;
+async function fillStoragedComprobantesDiv() {
+  showStoragedComprobantes.value = false;
+  const fetchedStoragedComprobantes = await FetchStoragedComprobantes();
+  storagedComprobantes.value = fetchedStoragedComprobantes;
+  filteredStoragedComprobantes.value = fetchedStoragedComprobantes;
+  showStoragedComprobantes.value = true;
 }
 
-function filterAvailableJsons() {
-  const queryText = availableJsonsSearchQuery.value.trim();
+function filterAvailableComprobantes() {
+  const queryText = availableComprobantesSearchQuery.value.trim();
 
   // No query → show all
   if (!queryText) {
-    filteredAvailableJsons.value = availableJsons.value;
+    filteredAvailableComprobantes.value = availableComprobante.value;
     return;
   }
 
-  // Try parse JSON query
-  let jsonQuery;
+  let comprobanteQuery;
   try {
-    jsonQuery = JSON.parse(queryText);
+    comprobanteQuery = json.parse(queryText);
   } catch {
-    jsonQuery = null;
+    comprobanteQuery = null;
   }
 
   // Plain text search
-  if (!jsonQuery) {
+  if (!comprobanteQuery) {
     const text = queryText.toLowerCase();
-    filteredAvailableJsons.value = availableJsons.value.filter((json) =>
-      Object.values(json).some((v) =>
+    filteredAvailableComprobantes.value = availableComprobante.value.filter((Comprobante) =>
+      Object.values(Comprobante).some((v) =>
         v?.toString().toLowerCase().includes(text)
       )
     );
     return;
   }
 
-  // JSON query mode
-  if (jsonQuery.conditions && Array.isArray(jsonQuery.conditions)) {
-    filteredAvailableJsons.value = availableJsons.value.filter((json) =>
-      jsonQuery.conditions.every((cond) => {
-        const value = json[cond.field]?.toString().toLowerCase() || "";
+  // Comprobante query mode
+  if (comprobanteQuery.conditions && Array.isArray(comprobanteQuery.conditions)) {
+    filteredAvailableComprobantes.value = availableComprobante.value.filter((Comprobante) =>
+      comprobanteQuery.conditions.every((cond) => {
+        const value = Comprobante[cond.field]?.toString().toLowerCase() || "";
         const target = cond.value.toLowerCase();
 
         switch (cond.match) {
@@ -115,13 +114,13 @@ function filterAvailableJsons() {
         }
       })
     );
-  } else if (jsonQuery.field && jsonQuery.value) {
-    // Simple JSON object
-    filteredAvailableJsons.value = availableJsons.value.filter((json) => {
-      const value = json[jsonQuery.field]?.toString().toLowerCase() || "";
-      const target = jsonQuery.value.toLowerCase();
+  } else if (comprobanteQuery.field && comprobanteQuery.value) {
+    // Simple Comprobante object
+    filteredAvailableComprobantes.value = availableComprobante.value.filter((comprobante) => {
+      const value = comprobante[comprobanteQuery.field]?.toString().toLowerCase() || "";
+      const target = comprobanteQuery.value.toLowerCase();
 
-      switch (jsonQuery.match) {
+      switch (comprobanteQuery.match) {
         case "startsWith":
           return value.startsWith(target);
         case "equals":
@@ -132,18 +131,22 @@ function filterAvailableJsons() {
       }
     });
   } else {
-    // Invalid JSON structure — show all
-    filteredAvailableJsons.value = availableJsons.value;
+    // Invalid Comprobante structure — show all
+    filteredAvailableComprobantes.value = availableComprobante.value;
   }
 }
 
 //Vue.js functions
 onMounted(async () => {
-  await Promise.all([fillAvailableJsonsDiv(), fillStoragedJsonsDiv()]);
+  try {
+    await Promise.all([fillAvailableComprobantesDiv(), fillStoragedComprobantesDiv()]);
+  } catch (err) {
+    console.error("Failed to fetch comprobantes:", err);
+  }
 });
 
-watch([availableJsonsSearchQuery], () => {
-  filterAvailableJsons();
+watch([availableComprobantesSearchQuery], () => {
+  filterAvailableComprobantes();
 });
 </script>
 
@@ -157,35 +160,35 @@ watch([availableJsonsSearchQuery], () => {
     >
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="storageAllAvaliableJsonsButtonOnClick()"
+        @click="storageAllAvaliableComprobantesButtonOnClick()"
       >
-        Storage all available Jsons
+        Storage all available Comprobantes
       </button>
       <button
         class="btn btn-md btn-secondary fs-7"
-        @click="deleteAllStoragedJsonsButtonOnClick()"
+        @click="deleteAllStoragedComprobantesButtonOnClick()"
       >
-        Delete all storaged Jsons
+        Delete all storaged Comprobantes
       </button>
     </div>
 
     <div
-      class="d-flex flex-column justify-content-start align-items-center w-100 mx-5 p-2 gap-2 bg-black jsons-module-div"
+      class="d-flex flex-column justify-content-start align-items-center w-100 mx-5 p-2 gap-2 bg-black comprobantes-module-div"
     >
       <textarea
         type="text"
-        v-model="availableJsonsSearchQuery"
+        v-model="availableComprobantesSearchQuery"
         class="form-control fs-3 lh-1"
         id="find-textarea"
-        :placeholder="findAvailableJsonsTextAreaPlaceholder"
+        :placeholder="findAvailableComprobantesTextAreaPlaceholder"
       />
-      <h3 class="fw-bold fs-4">Jsons available for storage</h3>
+      <h3 class="fw-bold fs-4">Comprobantes available for storage</h3>
       <div
-        v-if="!showAvailableJsons"
+        v-if="!showAvailableComprobantes"
         class="d-flex justify-content-center align-items-center w-100 h-100"
       >
         <div
-          class="spinner-border text-primary jsons-fetching-spinner-div"
+          class="spinner-border text-primary comprobantes-fetching-spinner-div"
           role="status"
         >
           <span class="visually-hidden">Loading...</span>
@@ -193,21 +196,21 @@ watch([availableJsonsSearchQuery], () => {
       </div>
       <div
         v-else
-        class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 jsons-div"
+        class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
       >
         <div
-          v-for="(comprobanteInJson, rowIndex) in filteredAvailableJsons"
+          v-for="(comprobanteInComprobante, rowIndex) in filteredAvailableComprobantes"
           :key="rowIndex"
           class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
           <textarea
-            class="form form-control fs-3 lh-1 json-textarea"
+            class="form form-control fs-3 lh-1 comprobante-textarea"
             disabled
-            >{{ comprobanteInJson }}</textarea
+            >{{ comprobanteInComprobante }}</textarea
           >
           <button
             class="btn btn-lg btn-primary"
-            @click="storageAvailableJsonButtonOnClick(comprobanteInJson)"
+            @click="storageAvailableComprobanteButtonOnClick(comprobanteInComprobante)"
           >
             Storage
           </button>
@@ -216,22 +219,22 @@ watch([availableJsonsSearchQuery], () => {
     </div>
 
     <div
-      class="d-flex flex-column justify-content-start align-items-center w-100 mx-5 p-2 gap-2 bg-black jsons-module-div"
+      class="d-flex flex-column justify-content-start align-items-center w-100 mx-5 p-2 gap-2 bg-black comprobantes-module-div"
     >
       <textarea
         type="text"
-        v-model="storagedJsonsSearchQuery"
+        v-model="storagedComprobantesSearchQuery"
         class="form-control fs-3 lh-1"
         id="find-textarea"
-        :placeholder="findStoragedJsonsTextAreaPlaceholder"
+        :placeholder="findStoragedComprobantesTextAreaPlaceholder"
       />
-      <h3 class="fw-bold fs-4">Storaged Jsons</h3>
+      <h3 class="fw-bold fs-4">Storaged Comprobantes</h3>
       <div
-        v-if="!showStoragedJsons"
+        v-if="!showStoragedComprobantes"
         class="d-flex justify-content-center align-items-center w-100 h-100"
       >
         <div
-          class="spinner-border text-primary jsons-fetching-spinner-div"
+          class="spinner-border text-primary comprobantes-fetching-spinner-div"
           role="status"
         >
           <span class="visually-hidden">Loading...</span>
@@ -239,21 +242,21 @@ watch([availableJsonsSearchQuery], () => {
       </div>
       <div
         v-else
-        class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 jsons-div"
+        class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
       >
         <div
-          v-for="(comprobanteInJson, rowIndex) in filteredStoragedJsons"
+          v-for="(comprobanteInComprobante, rowIndex) in filteredStoragedComprobantes"
           :key="rowIndex"
           class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
           <textarea
-            class="form form-control fs-3 lh-1 json-textarea"
+            class="form form-control fs-3 lh-1 comprobante-textarea"
             disabled
-            >{{ comprobanteInJson }}</textarea
+            >{{ comprobanteInComprobante }}</textarea
           >
           <button
             class="btn btn-lg btn-primary"
-            @click="deleteStoragedJsonButtonOnClick(comprobanteInJson)"
+            @click="deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante)"
           >
             Delete
           </button>
@@ -264,23 +267,23 @@ watch([availableJsonsSearchQuery], () => {
 </template>
 
 <style scoped>
-.jsons-fetching-spinner-div {
+.comprobantes-fetching-spinner-div {
   width: 19rem;
   height: 19rem;
 }
 
-.jsons-module-div {
+.comprobantes-module-div {
   height: 71vh;
 }
 
-.jsons-div {
+.comprobantes-div {
   overflow-x: hidden;
   overflow-y: auto;
   scroll-snap-type: y mandatory;
   height: 55vh;
 }
 
-.json-textarea {
+.comprobante-textarea {
   width: 100%;
   height: 41vh;
 }
