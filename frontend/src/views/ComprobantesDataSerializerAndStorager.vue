@@ -6,33 +6,42 @@ import ViewNavigator from "../components/ViewNavigator.vue";
 import {
   FetchAvailableComprobantes,
   FetchStoragedComprobantes,
+  SelectComprobantesDownloadsDirectory,
   StorageAllAvailableComprobantes,
   DeleteAllStoragedComprobantes,
+  DownloadAllAvailableComprobantes,
   StorageAvailableComprobante,
   DeleteStoragedComprobante,
 } from "../../wailsjs/go/services/ComprobantesDataSerializerAndStoragerService";
 
-const availableComprobante = ref([]);
+const availableComprobantes = ref([]);
 const filteredAvailableComprobantes = ref([]);
 const availableComprobantesSearchQuery = ref("");
 const findAvailableComprobantesTextAreaPlaceholder = ref(
-  "Enter the search Comprobante query..."
+  "Enter the search comprobante query..."
 );
 const storagedComprobantes = ref([]);
 const filteredStoragedComprobantes = ref([]);
 const storagedComprobantesSearchQuery = ref("");
 const findStoragedComprobantesTextAreaPlaceholder = ref(
-  "Enter the search Comprobante query..."
+  "Enter the search comprobante query..."
 );
 
-//Consts for handle hide-show behabiours between GUI components
+const comprobanteDownloadPath = ref("Select a download path...");
+
+//Consts for handle hide-show behaviours between GUI components
 const showAvailableComprobantes = ref(false);
 const showStoragedComprobantes = ref(false);
 
 //Buttons onclick functions
+async function changeComprobantesDownloadPathButtonOnClick() {
+  const result = await SelectComprobantesDownloadsDirectory();
+  comprobanteDownloadPath.value = result;
+}
+
 async function storageAllAvaliableComprobantesButtonOnClick() {
   showStoragedComprobantes.value = false;
-  await StorageAllAvailableComprobantes(availableComprobante.value);
+  await StorageAllAvailableComprobantes(availableComprobantes.value);
   await fillStoragedComprobantesDiv();
 }
 
@@ -42,12 +51,20 @@ async function deleteAllStoragedComprobantesButtonOnClick() {
   await fillStoragedComprobantesDiv();
 }
 
-async function storageAvailableComprobanteButtonOnClick(comprobanteInComprobante) {
+async function downloadAllAvailableComprobantesButtonOnClick() {
+  await DownloadAllAvailableComprobantes(availableComprobantes.value);
+}
+
+async function storageAvailableComprobanteButtonOnClick(
+  comprobanteInComprobante
+) {
   await StorageAvailableComprobante(comprobanteInComprobante);
   await fillStoragedComprobantesDiv();
 }
 
-async function deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante) {
+async function deleteStoragedComprobanteButtonOnClick(
+  comprobanteInComprobante
+) {
   await DeleteStoragedComprobante(comprobanteInComprobante);
   await fillStoragedComprobantesDiv();
 }
@@ -56,7 +73,7 @@ async function deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante) 
 async function fillAvailableComprobantesDiv() {
   showAvailableComprobantes.value = false;
   const fetchedAvailableComprobantes = await FetchAvailableComprobantes();
-  availableComprobante.value = fetchedAvailableComprobantes;
+  availableComprobantes.value = fetchedAvailableComprobantes;
   filteredAvailableComprobantes.value = fetchedAvailableComprobantes;
   showAvailableComprobantes.value = true;
 }
@@ -74,7 +91,7 @@ function filterAvailableComprobantes() {
 
   // No query → show all
   if (!queryText) {
-    filteredAvailableComprobantes.value = availableComprobante.value;
+    filteredAvailableComprobantes.value = availableComprobantes.value;
     return;
   }
 
@@ -88,22 +105,46 @@ function filterAvailableComprobantes() {
   // Plain text search
   if (!comprobanteQuery) {
     const text = queryText.toLowerCase();
-    filteredAvailableComprobantes.value = availableComprobante.value.filter((Comprobante) =>
-      Object.values(Comprobante).some((v) =>
-        v?.toString().toLowerCase().includes(text)
-      )
+    filteredAvailableComprobantes.value = availableComprobantes.value.filter(
+      (comprobante) =>
+        Object.values(comprobante).some((v) =>
+          v?.toString().toLowerCase().includes(text)
+        )
     );
     return;
   }
 
   // Comprobante query mode
-  if (comprobanteQuery.conditions && Array.isArray(comprobanteQuery.conditions)) {
-    filteredAvailableComprobantes.value = availableComprobante.value.filter((Comprobante) =>
-      comprobanteQuery.conditions.every((cond) => {
-        const value = Comprobante[cond.field]?.toString().toLowerCase() || "";
-        const target = cond.value.toLowerCase();
+  if (
+    comprobanteQuery.conditions &&
+    Array.isArray(comprobanteQuery.conditions)
+  ) {
+    filteredAvailableComprobantes.value = availableComprobantes.value.filter(
+      (comprobante) =>
+        comprobanteQuery.conditions.every((cond) => {
+          const value = comprobante[cond.field]?.toString().toLowerCase() || "";
+          const target = cond.value.toLowerCase();
 
-        switch (cond.match) {
+          switch (cond.match) {
+            case "startsWith":
+              return value.startsWith(target);
+            case "equals":
+              return value === target;
+            case "includes":
+            default:
+              return value.includes(target);
+          }
+        })
+    );
+  } else if (comprobanteQuery.field && comprobanteQuery.value) {
+    // Simple Comprobante object
+    filteredAvailableComprobantes.value = availableComprobantes.value.filter(
+      (comprobante) => {
+        const value =
+          comprobante[comprobanteQuery.field]?.toString().toLowerCase() || "";
+        const target = comprobanteQuery.value.toLowerCase();
+
+        switch (comprobanteQuery.match) {
           case "startsWith":
             return value.startsWith(target);
           case "equals":
@@ -112,34 +153,21 @@ function filterAvailableComprobantes() {
           default:
             return value.includes(target);
         }
-      })
-    );
-  } else if (comprobanteQuery.field && comprobanteQuery.value) {
-    // Simple Comprobante object
-    filteredAvailableComprobantes.value = availableComprobante.value.filter((comprobante) => {
-      const value = comprobante[comprobanteQuery.field]?.toString().toLowerCase() || "";
-      const target = comprobanteQuery.value.toLowerCase();
-
-      switch (comprobanteQuery.match) {
-        case "startsWith":
-          return value.startsWith(target);
-        case "equals":
-          return value === target;
-        case "includes":
-        default:
-          return value.includes(target);
       }
-    });
+    );
   } else {
     // Invalid Comprobante structure — show all
-    filteredAvailableComprobantes.value = availableComprobante.value;
+    filteredAvailableComprobantes.value = availableComprobantes.value;
   }
 }
 
 //Vue.js functions
 onMounted(async () => {
   try {
-    await Promise.all([fillAvailableComprobantesDiv(), fillStoragedComprobantesDiv()]);
+    await Promise.all([
+      fillAvailableComprobantesDiv(),
+      fillStoragedComprobantesDiv(),
+    ]);
   } catch (err) {
     console.error("Failed to fetch comprobantes:", err);
   }
@@ -156,20 +184,45 @@ watch([availableComprobantesSearchQuery], () => {
     class="d-flex flex-column justify-content-center align-items-center mt-3 p-3 gap-3 bg-dark"
   >
     <div
-      class="d-flex justify-content-center align-items-center p-2 gap-5 w-100 bg-black"
+      class="d-flex flex-column justify-content-center align-items-center p-2 gap-2 w-100 bg-black"
     >
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="storageAllAvaliableComprobantesButtonOnClick()"
+      <div class="d-flex justify-content-center align-items-center w-100 gap-2">
+        <h3 class="mt-1">Download Path:</h3>
+        <div
+          class="d-flex align-items-center fs-3 bg-dark text-white px-2 overflow-auto text-nowrap comprobantes-directory-download-path-div"
+        >
+          {{ comprobanteDownloadPath }}
+        </div>
+        <button
+          class="btn btn-md btn-secondary fs-6"
+          @click="changeComprobantesDownloadPathButtonOnClick()"
+        >
+          Change comprobantes download path
+        </button>
+      </div>
+
+      <div
+        class="d-flex justify-content-center align-items-center p-2 gap-5 w-100"
       >
-        Storage all available Comprobantes
-      </button>
-      <button
-        class="btn btn-md btn-secondary fs-7"
-        @click="deleteAllStoragedComprobantesButtonOnClick()"
-      >
-        Delete all storaged Comprobantes
-      </button>
+        <button
+          class="btn btn-md btn-secondary fs-7"
+          @click="storageAllAvaliableComprobantesButtonOnClick()"
+        >
+          Storage all available comprobantes
+        </button>
+        <button
+          class="btn btn-md btn-secondary fs-7"
+          @click="deleteAllStoragedComprobantesButtonOnClick()"
+        >
+          Delete all storaged comprobantes
+        </button>
+        <button
+          class="btn btn-md btn-secondary fs-7"
+          @click="downloadAllAvailableComprobantesButtonOnClick()"
+        >
+          Download all available comprobantes
+        </button>
+      </div>
     </div>
 
     <div
@@ -199,7 +252,9 @@ watch([availableComprobantesSearchQuery], () => {
         class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
       >
         <div
-          v-for="(comprobanteInComprobante, rowIndex) in filteredAvailableComprobantes"
+          v-for="(
+            comprobanteInComprobante, rowIndex
+          ) in filteredAvailableComprobantes"
           :key="rowIndex"
           class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
@@ -210,7 +265,9 @@ watch([availableComprobantesSearchQuery], () => {
           >
           <button
             class="btn btn-lg btn-primary"
-            @click="storageAvailableComprobanteButtonOnClick(comprobanteInComprobante)"
+            @click="
+              storageAvailableComprobanteButtonOnClick(comprobanteInComprobante)
+            "
           >
             Storage
           </button>
@@ -245,7 +302,9 @@ watch([availableComprobantesSearchQuery], () => {
         class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
       >
         <div
-          v-for="(comprobanteInComprobante, rowIndex) in filteredStoragedComprobantes"
+          v-for="(
+            comprobanteInComprobante, rowIndex
+          ) in filteredStoragedComprobantes"
           :key="rowIndex"
           class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
         >
@@ -256,7 +315,9 @@ watch([availableComprobantesSearchQuery], () => {
           >
           <button
             class="btn btn-lg btn-primary"
-            @click="deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante)"
+            @click="
+              deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante)
+            "
           >
             Delete
           </button>
@@ -286,5 +347,9 @@ watch([availableComprobantesSearchQuery], () => {
 .comprobante-textarea {
   width: 100%;
   height: 41vh;
+}
+
+.comprobantes-directory-download-path-div {
+  width: 56%;
 }
 </style>

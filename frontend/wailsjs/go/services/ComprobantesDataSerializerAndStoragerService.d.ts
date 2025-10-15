@@ -7,9 +7,13 @@ export function DeleteAllStoragedComprobantes(arg1:Array<comprobante.Comprobante
 
 export function DeleteStoragedComprobante(arg1:comprobante.Comprobante):Promise<void>;
 
+export function DownloadAllAvailableComprobantes():Promise<void>;
+
 export function FetchAvailableComprobantes():Promise<Array<comprobante.Comprobante>>;
 
 export function FetchStoragedComprobantes():Promise<Array<comprobante.Comprobante>>;
+
+export function SelectComprobantesDownloadsDirectory():Promise<string>;
 
 export function SetContext(arg1:context.Context):Promise<void>;
 

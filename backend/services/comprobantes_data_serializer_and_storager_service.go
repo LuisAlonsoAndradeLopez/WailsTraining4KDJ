@@ -1,4 +1,4 @@
-// TODO: Fix the last 4 functions of storage and delete comprobantes
+// TODO: Storage the fetchedAvailableComprobantes in an specified path
 package services
 
 import (
@@ -7,25 +7,31 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 
+	runtime "runtime"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/SaulEnriqueMR/kore-models/models/comprobante"
 )
 
 type ComprobantesDataSerializerAndStoragerService struct {
-	bboltDb *bolt.DB
-	ctx     context.Context
+	bboltDb     *bolt.DB
+	downloadDir string
+	ctx         context.Context
 }
 
 func NewComprobantesDataSerializerAndStoragerService(db *bolt.DB) *ComprobantesDataSerializerAndStoragerService {
-	s := &ComprobantesDataSerializerAndStoragerService{
-		bboltDb: db,
+	defaultDir, _ := os.UserHomeDir()
+
+	ncdsass := &ComprobantesDataSerializerAndStoragerService{
+		bboltDb:     db,
+		downloadDir: filepath.Join(defaultDir, "Downloads"),
 	}
-	return s
+	return ncdsass
 }
 
 // Auxiliary fuctions
@@ -34,8 +40,7 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) SetContext(ctx conte
 	cdsass.ctx = ctx
 }
 
-// Functions for use in ComprobanteDataSerializerAndStorager.vue
-func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableComprobantes() ([]comprobante.Comprobante, error) {
+func getComprobantesXmlFilesPaths() ([]string, error) {
 	rootPath := "C:/Users/wmike/Documents/Nobeno Zemeztre/Prrrrrrrrrrrrácticas de Ingeniebría de Software/2025"
 
 	var xmlPaths []string
@@ -52,6 +57,12 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 		return nil, fmt.Errorf("walkdir failed: %w", err)
 	}
 
+	return xmlPaths, err
+}
+
+// Functions for use in ComprobanteDataSerializerAndStorager.vue
+func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableComprobantes() ([]comprobante.Comprobante, error) {
+	xmlPaths, _ := getComprobantesXmlFilesPaths()
 	numWorkers := runtime.NumCPU() * 2
 
 	jobs := make(chan string, numWorkers*2)
@@ -150,12 +161,24 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchStoragedComprob
 	return comprobantes, err
 }
 
-func (s *ComprobantesDataSerializerAndStoragerService) StorageAllAvailableComprobantes(comprobantes []comprobante.Comprobante) error {
+func (cdsass *ComprobantesDataSerializerAndStoragerService) SelectComprobantesDownloadsDirectory() (string, error) {
+	selection, err := wailsRuntime.OpenDirectoryDialog(cdsass.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Select Downloads Directory",
+	})
+	if err != nil {
+		return "", err
+	}
+
+	cdsass.downloadDir = selection
+	return selection, nil
+}
+
+func (cdsass *ComprobantesDataSerializerAndStoragerService) StorageAllAvailableComprobantes(comprobantes []comprobante.Comprobante) error {
 	if len(comprobantes) == 0 {
 		return nil
 	}
 
-	err := s.bboltDb.Batch(func(tx *bolt.Tx) error {
+	err := cdsass.bboltDb.Batch(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("Comprobantes"))
 		if err != nil {
 			return fmt.Errorf("bucket creation failed: %w", err)
@@ -198,12 +221,12 @@ func (s *ComprobantesDataSerializerAndStoragerService) StorageAllAvailableCompro
 	return nil
 }
 
-func (s *ComprobantesDataSerializerAndStoragerService) DeleteAllStoragedComprobantes(comprobantes []comprobante.Comprobante) error {
+func (cdsass *ComprobantesDataSerializerAndStoragerService) DeleteAllStoragedComprobantes(comprobantes []comprobante.Comprobante) error {
 	if len(comprobantes) == 0 {
 		return nil
 	}
 
-	err := s.bboltDb.Batch(func(tx *bolt.Tx) error {
+	err := cdsass.bboltDb.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Comprobantes"))
 		if b == nil {
 			return fmt.Errorf("bucket 'Comprobantes' does not exist")
@@ -245,7 +268,96 @@ func (s *ComprobantesDataSerializerAndStoragerService) DeleteAllStoragedComproba
 	return nil
 }
 
-func (s *ComprobantesDataSerializerAndStoragerService) StorageAvailableComprobante(c comprobante.Comprobante) error {
+func (cdsass *ComprobantesDataSerializerAndStoragerService) DownloadAllAvailableComprobantes() error {
+	xmlPaths, err := getComprobantesXmlFilesPaths()
+	if err != nil {
+		return fmt.Errorf("failed to get XML paths: %w", err)
+	}
+
+	destDir := filepath.Join(cdsass.downloadDir, "Comprobantes")
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create destination folder: %w", err)
+	}
+
+	numWorkers := runtime.NumCPU() * 2
+	jobs := make(chan string, numWorkers*2)
+	errs := make(chan error, numWorkers*2)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for srcPath := range jobs {
+				data, err := os.ReadFile(srcPath)
+				if err != nil {
+					select {
+					case errs <- fmt.Errorf("read %s: %w", srcPath, err):
+					default:
+					}
+					continue
+				}
+				bytesDataToComprobante, _ := comprobante.SerializeComprobanteFromXml(data)
+				var basePath string
+
+				switch {
+				case bytesDataToComprobante.Comprobante40 != nil:
+					basePath = bytesDataToComprobante.Comprobante40.GetFileName()
+				case bytesDataToComprobante.Comprobante33 != nil:
+					basePath = bytesDataToComprobante.Comprobante33.GetFileName()
+				case bytesDataToComprobante.Comprobante32 != nil:
+					basePath = bytesDataToComprobante.Comprobante32.GetFileName()
+				default:
+					fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
+				}
+
+				destPath := filepath.Join(destDir, basePath)
+
+				if err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
+					select {
+					case errs <- fmt.Errorf("failed to create directories for %s: %w", destPath, err):
+					default:
+					}
+					continue
+				}
+
+				if err := os.WriteFile(destPath, data, 0644); err != nil {
+					select {
+					case errs <- fmt.Errorf("write %s: %w", destPath, err):
+					default:
+					}
+					continue
+				}
+			}
+		}()
+	}
+
+	go func() {
+		for _, path := range xmlPaths {
+			jobs <- path
+		}
+		close(jobs)
+	}()
+
+	go func() {
+		wg.Wait()
+		close(errs)
+	}()
+
+	var allErrs []string
+	for e := range errs {
+		allErrs = append(allErrs, e.Error())
+	}
+
+	if len(allErrs) > 0 {
+		return fmt.Errorf("some errors occurred: %s", strings.Join(allErrs, "; "))
+	}
+
+	return nil
+}
+
+func (cdsass *ComprobantesDataSerializerAndStoragerService) StorageAvailableComprobante(c comprobante.Comprobante) error {
 	comprobanteInBytes, err := json.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
@@ -267,7 +379,7 @@ func (s *ComprobantesDataSerializerAndStoragerService) StorageAvailableComproban
 		return fmt.Errorf("uuid is empty for comprobante")
 	}
 
-	err = s.bboltDb.Update(func(tx *bolt.Tx) error {
+	err = cdsass.bboltDb.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("Comprobantes"))
 		if err != nil {
 			return fmt.Errorf("bucket creation failed: %w", err)

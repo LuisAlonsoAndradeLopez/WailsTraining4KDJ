@@ -10,12 +10,20 @@ export function DeleteStoragedComprobante(arg1) {
   return window['go']['services']['ComprobantesDataSerializerAndStoragerService']['DeleteStoragedComprobante'](arg1);
 }
 
+export function DownloadAllAvailableComprobantes() {
+  return window['go']['services']['ComprobantesDataSerializerAndStoragerService']['DownloadAllAvailableComprobantes']();
+}
+
 export function FetchAvailableComprobantes() {
   return window['go']['services']['ComprobantesDataSerializerAndStoragerService']['FetchAvailableComprobantes']();
 }
 
 export function FetchStoragedComprobantes() {
   return window['go']['services']['ComprobantesDataSerializerAndStoragerService']['FetchStoragedComprobantes']();
+}
+
+export function SelectComprobantesDownloadsDirectory() {
+  return window['go']['services']['ComprobantesDataSerializerAndStoragerService']['SelectComprobantesDownloadsDirectory']();
 }
 
 export function SetContext(arg1) {
