@@ -41,6 +41,7 @@ async function changeComprobantesDownloadPathButtonOnClick() {
 
 async function storageAllAvaliableComprobantesButtonOnClick() {
   showStoragedComprobantes.value = false;
+  console.log(availableComprobantes.value[0])
   await StorageAllAvailableComprobantes(availableComprobantes.value);
   await fillStoragedComprobantesDiv();
 }
@@ -173,9 +174,9 @@ onMounted(async () => {
   }
 });
 
-watch([availableComprobantesSearchQuery], () => {
-  filterAvailableComprobantes();
-});
+//watch([availableComprobantesSearchQuery], () => {
+//  filterAvailableComprobantes();
+//});
 </script>
 
 <template>
