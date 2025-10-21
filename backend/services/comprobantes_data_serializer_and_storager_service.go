@@ -1,5 +1,3 @@
-// TODO: Eliminar de los jsons "KuantikMetadata", y ProcessorMetadata
-// En el repositorio bueno bueno de Kuantik Desktop poner el puro código del backend de este repo
 package services
 
 import (
@@ -67,7 +65,7 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 	numWorkers := runtime.NumCPU() * 2
 
 	jobs := make(chan string, numWorkers*2)
-	results := make(chan any, numWorkers*2)
+	results := make(chan map[string]any, numWorkers*2)
 	errs := make(chan error, numWorkers*2)
 
 	var wg sync.WaitGroup
@@ -96,7 +94,6 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 				}
 
 				var selectedComp any
-
 				switch {
 				case comp.Comprobante40 != nil:
 					selectedComp = comp.Comprobante40
@@ -108,8 +105,21 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 					fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
 				}
 
+				jsonBytes, err := json.Marshal(selectedComp)
+				if err != nil {
+					panic(err)
+				}
+
+				var jsonMap map[string]any
+				if err := json.Unmarshal(jsonBytes, &jsonMap); err != nil {
+					panic(err)
+				}
+
+				delete(jsonMap, "KuantikMetadata")
+				delete(jsonMap, "ProcessorMetadata")
+
 				select {
-				case results <- selectedComp:
+				case results <- jsonMap:
 				default:
 				}
 			}
@@ -191,8 +201,6 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) StorageAllAvailableC
 	if len(comprobantes) == 0 {
 		return nil
 	}
-
-	fmt.Print(comprobantes[0])
 
 	err := cdsass.bboltDb.Batch(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("Comprobantes"))

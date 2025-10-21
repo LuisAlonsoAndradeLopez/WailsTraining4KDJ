@@ -6,17 +6,19 @@ Para poder arrancar este sistema primero tienes que ejecutar estos comandos:
 
 En la carpeta raíz:
 ```bash
-go get github.com/wailsapp/wails/v2@v2.10.2
 go get gorm.io/gorm@v1.30.2
 go get gorm.io/driver/mysql@v1.6.0
 go get siteminds.dev/gosoap@latest
 go get github.com/go-resty/resty/v2
 go get go.mongodb.org/mongo-driver/mongo
-go get github.com/qiniu/qmgo
 go get gorm.io/driver/sqlite
 go get github.com/glebarez/sqlite
 go get go.etcd.io/bbolt@latest
 go get github.com/PuerkitoBio/goquery
+
+go get package github.com/wailsapp/wails/v2
+go get package github.com/qiniu/qmgo
+go get package github.com/SaulEnriqueMR/kore-models@v1.0.96
 ```
 
 En la carpeta "frontend"
@@ -26,6 +28,7 @@ npm install bootstrap-icons
 npm install bootstrap-vue-3
 npm install vue-router@4
 npm install sweetalert2
+npm install mingo
 ```
 
 ## Poder crear el instalador

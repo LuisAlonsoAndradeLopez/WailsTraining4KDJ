@@ -1,5 +1,9 @@
+//TODO: Upgrade the pagination for have buttons 1, 2, 3 to last
+// Fix the concurrency, isn't fetching all files on available and storaged
+
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import mingo from "mingo";
 
 import ViewNavigator from "../components/ViewNavigator.vue";
 
@@ -16,18 +20,67 @@ import {
 
 const availableComprobantes = ref([]);
 const filteredAvailableComprobantes = ref([]);
-const availableComprobantesSearchQuery = ref("");
+const availableComprobantesFilterQuery = ref({});
+const availableComprobantesFilterQueryText = ref('{}');
 const findAvailableComprobantesTextAreaPlaceholder = ref(
   "Enter the search comprobante query..."
 );
 const storagedComprobantes = ref([]);
 const filteredStoragedComprobantes = ref([]);
-const storagedComprobantesSearchQuery = ref("");
+const storagedComprobantesFilterQuery = ref({});
+const storagedComprobantesFilterQueryText = ref('{}');
 const findStoragedComprobantesTextAreaPlaceholder = ref(
   "Enter the search comprobante query..."
 );
 
 const comprobanteDownloadPath = ref("Select a download path...");
+
+const availableComprobantesCurrentPage = ref(1);
+const availableComprobantesItemsPerPage = ref(10);
+const storagedComprobantesCurrentPage = ref(1);
+const storagedComprobantesItemsPerPage = ref(10);
+const availableComprobantesTotalPages = computed(() => {
+  if (filteredAvailableComprobantes.value != null) {
+    return Math.ceil(
+      filteredAvailableComprobantes.value.length /
+        availableComprobantesItemsPerPage.value
+    );
+  } else {
+    return 0;
+  }
+});
+const availablePaginatedComprobantes = computed(() => {
+  if (filteredAvailableComprobantes.value != null) {
+    const start =
+      (availableComprobantesCurrentPage.value - 1) *
+      availableComprobantesItemsPerPage.value;
+    const end = start + availableComprobantesItemsPerPage.value;
+    return filteredAvailableComprobantes.value.slice(start, end);
+  } else {
+    return 0;
+  }
+});
+const storagedComprobantesTotalPages = computed(() => {
+  if (filteredStoragedComprobantes.value != null) {
+    return Math.ceil(
+      filteredStoragedComprobantes.value.length /
+        storagedComprobantesItemsPerPage.value
+    );
+  } else {
+    return 0;
+  }
+});
+const storagedPaginatedComprobantes = computed(() => {
+  if (filteredStoragedComprobantes.value != null) {
+    const start =
+      (storagedComprobantesCurrentPage.value - 1) *
+      storagedComprobantesItemsPerPage.value;
+    const end = start + storagedComprobantesItemsPerPage.value;
+    return filteredStoragedComprobantes.value.slice(start, end);
+  } else {
+    return 0;
+  }
+});
 
 //Consts for handle hide-show behaviours between GUI components
 const showAvailableComprobantes = ref(false);
@@ -41,7 +94,6 @@ async function changeComprobantesDownloadPathButtonOnClick() {
 
 async function storageAllAvaliableComprobantesButtonOnClick() {
   showStoragedComprobantes.value = false;
-  console.log(availableComprobantes.value[0])
   await StorageAllAvailableComprobantes(availableComprobantes.value);
   await fillStoragedComprobantesDiv();
 }
@@ -63,11 +115,40 @@ async function storageAvailableComprobanteButtonOnClick(
   await fillStoragedComprobantesDiv();
 }
 
+function availableComprobantesPreviousPageButtonOnClick() {
+  if (availableComprobantesCurrentPage.value > 1) {
+    availableComprobantesCurrentPage.value--;
+  }
+}
+
+function availableComprobantesNextPageButtonOnClick() {
+  if (
+    availableComprobantesCurrentPage.value <
+    availableComprobantesTotalPages.value
+  ) {
+    availableComprobantesCurrentPage.value++;
+  }
+}
+
 async function deleteStoragedComprobanteButtonOnClick(
   comprobanteInComprobante
 ) {
   await DeleteStoragedComprobante(comprobanteInComprobante);
   await fillStoragedComprobantesDiv();
+}
+
+function storagedComprobantesPreviousPageButtonOnClick() {
+  if (storagedComprobantesCurrentPage.value > 1) {
+    storagedComprobantesCurrentPage.value--;
+  }
+}
+
+function storagedComprobantesNextPageButtonOnClick() {
+  if (
+    storagedComprobantesCurrentPage.value < storagedComprobantesTotalPages.value
+  ) {
+    storagedComprobantesCurrentPage.value++;
+  }
 }
 
 //Auxiliary funcions
@@ -87,80 +168,6 @@ async function fillStoragedComprobantesDiv() {
   showStoragedComprobantes.value = true;
 }
 
-function filterAvailableComprobantes() {
-  const queryText = availableComprobantesSearchQuery.value.trim();
-
-  // No query → show all
-  if (!queryText) {
-    filteredAvailableComprobantes.value = availableComprobantes.value;
-    return;
-  }
-
-  let comprobanteQuery;
-  try {
-    comprobanteQuery = json.parse(queryText);
-  } catch {
-    comprobanteQuery = null;
-  }
-
-  // Plain text search
-  if (!comprobanteQuery) {
-    const text = queryText.toLowerCase();
-    filteredAvailableComprobantes.value = availableComprobantes.value.filter(
-      (comprobante) =>
-        Object.values(comprobante).some((v) =>
-          v?.toString().toLowerCase().includes(text)
-        )
-    );
-    return;
-  }
-
-  // Comprobante query mode
-  if (
-    comprobanteQuery.conditions &&
-    Array.isArray(comprobanteQuery.conditions)
-  ) {
-    filteredAvailableComprobantes.value = availableComprobantes.value.filter(
-      (comprobante) =>
-        comprobanteQuery.conditions.every((cond) => {
-          const value = comprobante[cond.field]?.toString().toLowerCase() || "";
-          const target = cond.value.toLowerCase();
-
-          switch (cond.match) {
-            case "startsWith":
-              return value.startsWith(target);
-            case "equals":
-              return value === target;
-            case "includes":
-            default:
-              return value.includes(target);
-          }
-        })
-    );
-  } else if (comprobanteQuery.field && comprobanteQuery.value) {
-    // Simple Comprobante object
-    filteredAvailableComprobantes.value = availableComprobantes.value.filter(
-      (comprobante) => {
-        const value =
-          comprobante[comprobanteQuery.field]?.toString().toLowerCase() || "";
-        const target = comprobanteQuery.value.toLowerCase();
-
-        switch (comprobanteQuery.match) {
-          case "startsWith":
-            return value.startsWith(target);
-          case "equals":
-            return value === target;
-          case "includes":
-          default:
-            return value.includes(target);
-        }
-      }
-    );
-  } else {
-    // Invalid Comprobante structure — show all
-    filteredAvailableComprobantes.value = availableComprobantes.value;
-  }
-}
 
 //Vue.js functions
 onMounted(async () => {
@@ -174,9 +181,63 @@ onMounted(async () => {
   }
 });
 
-//watch([availableComprobantesSearchQuery], () => {
-//  filterAvailableComprobantes();
-//});
+watch(availableComprobantesFilterQueryText, (newText) => {
+  try {
+    const parsed = JSON.parse(newText);
+    if (typeof parsed === 'object' && parsed !== null) {
+      availableComprobantesFilterQuery.value = parsed;
+    } else {
+      availableComprobantesFilterQuery.value = {};
+    }
+  } catch (e) {
+    console.warn('Invalid query JSON:', e.message);
+    availableComprobantesFilterQuery.value = {};
+  }
+});
+
+watch(
+  [availableComprobantes, availableComprobantesFilterQuery],
+  () => {
+    try {
+      filteredAvailableComprobantes.value = mingo
+        .find(availableComprobantes.value, availableComprobantesFilterQuery.value)
+        .all();
+    } catch (e) {
+      console.warn('Mingo query error:', e.message);
+      filteredAvailableComprobantes.value = [];
+    }
+  },
+  { immediate: true }
+);
+
+watch(storagedComprobantesFilterQueryText, (newText) => {
+  try {
+    const parsed = JSON.parse(newText);
+    if (typeof parsed === 'object' && parsed !== null) {
+      storagedComprobantesFilterQuery.value = parsed;
+    } else {
+      storagedComprobantesFilterQuery.value = {};
+    }
+  } catch (e) {
+    console.warn('Invalid query JSON:', e.message);
+    storagedComprobantesFilterQuery.value = {};
+  }
+});
+
+watch(
+  [storagedComprobantes, storagedComprobantesFilterQuery],
+  () => {
+    try {
+      filteredStoragedComprobantes.value = mingo
+        .find(storagedComprobantes.value, storagedComprobantesFilterQuery.value)
+        .all();
+    } catch (e) {
+      console.warn('Mingo query error:', e.message);
+      filteredStoragedComprobantes.value = [];
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -231,7 +292,7 @@ onMounted(async () => {
     >
       <textarea
         type="text"
-        v-model="availableComprobantesSearchQuery"
+        v-model="availableComprobantesFilterQueryText"
         class="form-control fs-3 lh-1"
         id="find-textarea"
         :placeholder="findAvailableComprobantesTextAreaPlaceholder"
@@ -248,29 +309,62 @@ onMounted(async () => {
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
+
       <div
         v-else
-        class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
+        class="d-flex flex-column justify-content-start align-items-start w-100"
       >
         <div
-          v-for="(
-            comprobanteInComprobante, rowIndex
-          ) in filteredAvailableComprobantes"
-          :key="rowIndex"
-          class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
+          class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
         >
-          <textarea
-            class="form form-control fs-3 lh-1 comprobante-textarea"
-            disabled
-            >{{ comprobanteInComprobante }}</textarea
+          <div
+            v-for="(
+              comprobanteInComprobante, rowIndex
+            ) in availablePaginatedComprobantes"
+            :key="rowIndex"
+            class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
+          >
+            <textarea
+              class="form form-control fs-3 lh-1 comprobante-textarea"
+              disabled
+              >{{ comprobanteInComprobante }}</textarea
+            >
+            <button
+              class="btn btn-lg btn-primary"
+              @click="
+                storageAvailableComprobanteButtonOnClick(
+                  comprobanteInComprobante
+                )
+              "
+            >
+              Storage
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="d-flex justify-content-center align-items-center w-100 gap-3 mt-3"
+        >
+          <button
+            class="btn btn-secondary"
+            :disabled="availableComprobantesCurrentPage === 1"
+            @click="availableComprobantesPreviousPageButtonOnClick"
+          >
+            Previous
+          </button>
+          <span
+            >Page {{ availableComprobantesCurrentPage }} of
+            {{ availableComprobantesTotalPages }}</span
           >
           <button
-            class="btn btn-lg btn-primary"
-            @click="
-              storageAvailableComprobanteButtonOnClick(comprobanteInComprobante)
+            class="btn btn-secondary"
+            :disabled="
+              availableComprobantesCurrentPage ===
+              availableComprobantesTotalPages
             "
+            @click="availableComprobantesNextPageButtonOnClick"
           >
-            Storage
+            Next
           </button>
         </div>
       </div>
@@ -281,7 +375,7 @@ onMounted(async () => {
     >
       <textarea
         type="text"
-        v-model="storagedComprobantesSearchQuery"
+        v-model="storagedComprobantesFilterQueryText"
         class="form-control fs-3 lh-1"
         id="find-textarea"
         :placeholder="findStoragedComprobantesTextAreaPlaceholder"
@@ -298,29 +392,58 @@ onMounted(async () => {
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
-      <div
+      <div 
         v-else
-        class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
+        class="d-flex flex-column justify-content-start align-items-start w-100"
       >
         <div
-          v-for="(
-            comprobanteInComprobante, rowIndex
-          ) in filteredStoragedComprobantes"
-          :key="rowIndex"
-          class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
+          class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
         >
-          <textarea
-            class="form form-control fs-3 lh-1 comprobante-textarea"
-            disabled
-            >{{ comprobanteInComprobante }}</textarea
+          <div
+            v-for="(
+              comprobanteInComprobante, rowIndex
+            ) in storagedPaginatedComprobantes"
+            :key="rowIndex"
+            class="d-flex flex-column justify-content-center align-items-center w-100 p-2 gap-2 bg-dark"
+          >
+            <textarea
+              class="form form-control fs-3 lh-1 comprobante-textarea"
+              disabled
+              >{{ comprobanteInComprobante }}</textarea
+            >
+            <button
+              class="btn btn-lg btn-primary"
+              @click="
+                deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante)
+              "
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="d-flex justify-content-center align-items-center w-100 gap-3 mt-3"
+        >
+          <button
+            class="btn btn-secondary"
+            :disabled="storagedComprobantesCurrentPage === 1"
+            @click="storagedComprobantesPreviousPageButtonOnClick"
+          >
+            Previous
+          </button>
+          <span
+            >Page {{ storagedComprobantesCurrentPage }} of
+            {{ storagedComprobantesTotalPages }}</span
           >
           <button
-            class="btn btn-lg btn-primary"
-            @click="
-              deleteStoragedComprobanteButtonOnClick(comprobanteInComprobante)
+            class="btn btn-secondary"
+            :disabled="
+              storagedComprobantesCurrentPage === storagedComprobantesTotalPages
             "
+            @click="storagedComprobantesNextPageButtonOnClick"
           >
-            Delete
+            Next
           </button>
         </div>
       </div>
@@ -335,19 +458,19 @@ onMounted(async () => {
 }
 
 .comprobantes-module-div {
-  height: 71vh;
+  height: 95.5vh;
 }
 
 .comprobantes-div {
   overflow-x: hidden;
   overflow-y: auto;
   scroll-snap-type: y mandatory;
-  height: 55vh;
+  height: 64vh;
 }
 
 .comprobante-textarea {
   width: 100%;
-  height: 41vh;
+  height: 53vh;
 }
 
 .comprobantes-directory-download-path-div {
