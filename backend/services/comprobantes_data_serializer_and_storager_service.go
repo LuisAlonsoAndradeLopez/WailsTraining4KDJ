@@ -64,12 +64,12 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 	xmlPaths, _ := getComprobantesXmlFilesPaths()
 	numWorkers := runtime.NumCPU() * 2
 
-	jobs := make(chan string, numWorkers*2)
-	results := make(chan map[string]any, numWorkers*2)
-	errs := make(chan error, numWorkers*2)
+	jobs := make(chan string, len(xmlPaths))
+	var mu sync.Mutex
+	var comprobantes []any
+	var allErrs []string
 
 	var wg sync.WaitGroup
-
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
@@ -77,19 +77,17 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 			for path := range jobs {
 				data, err := os.ReadFile(path)
 				if err != nil {
-					select {
-					case errs <- fmt.Errorf("read %s: %w", path, err):
-					default:
-					}
+					mu.Lock()
+					allErrs = append(allErrs, fmt.Sprintf("read %s: %v", path, err))
+					mu.Unlock()
 					continue
 				}
 
 				comp, err := comprobante.SerializeComprobanteFromXml(data)
 				if err != nil {
-					select {
-					case errs <- fmt.Errorf("parse %s: %w", path, err):
-					default:
-					}
+					mu.Lock()
+					allErrs = append(allErrs, fmt.Sprintf("parse %s: %v", path, err))
+					mu.Unlock()
 					continue
 				}
 
@@ -102,52 +100,46 @@ func (cdsass *ComprobantesDataSerializerAndStoragerService) FetchAvailableCompro
 				case comp.Comprobante32 != nil:
 					selectedComp = comp.Comprobante32
 				default:
-					fmt.Errorf("no Comprobante version present (Comprobante32/33/40 missing)")
+					mu.Lock()
+					allErrs = append(allErrs, fmt.Sprintf("no Comprobante version in %s", path))
+					mu.Unlock()
+					continue
 				}
 
 				jsonBytes, err := json.Marshal(selectedComp)
 				if err != nil {
-					panic(err)
+					mu.Lock()
+					allErrs = append(allErrs, fmt.Sprintf("marshal %s: %v", path, err))
+					mu.Unlock()
+					continue
 				}
 
 				var jsonMap map[string]any
 				if err := json.Unmarshal(jsonBytes, &jsonMap); err != nil {
-					panic(err)
+					mu.Lock()
+					allErrs = append(allErrs, fmt.Sprintf("unmarshal %s: %v", path, err))
+					mu.Unlock()
+					continue
 				}
 
 				delete(jsonMap, "KuantikMetadata")
 				delete(jsonMap, "ProcessorMetadata")
 
-				select {
-				case results <- jsonMap:
-				default:
-				}
+				mu.Lock()
+				comprobantes = append(comprobantes, jsonMap)
+				mu.Unlock()
 			}
 		}()
 	}
 
-	go func() {
-		for _, path := range xmlPaths {
-			jobs <- path
-		}
-		close(jobs)
-	}()
-
-	go func() {
-		wg.Wait()
-		close(results)
-		close(errs)
-	}()
-
-	var comprobantes []any
-	for r := range results {
-		comprobantes = append(comprobantes, r)
+	// Send jobs
+	for _, path := range xmlPaths {
+		jobs <- path
 	}
+	close(jobs)
 
-	var allErrs []string
-	for e := range errs {
-		allErrs = append(allErrs, e.Error())
-	}
+	// Wait for all workers
+	wg.Wait()
 
 	if len(allErrs) > 0 {
 		return comprobantes, fmt.Errorf("some errors occurred: %s", strings.Join(allErrs, "; "))

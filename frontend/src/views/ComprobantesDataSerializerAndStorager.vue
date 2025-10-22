@@ -1,6 +1,3 @@
-//TODO: Upgrade the pagination for have buttons 1, 2, 3 to last
-// Fix the concurrency, isn't fetching all files on available and storaged
-
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import mingo from "mingo";
@@ -21,14 +18,14 @@ import {
 const availableComprobantes = ref([]);
 const filteredAvailableComprobantes = ref([]);
 const availableComprobantesFilterQuery = ref({});
-const availableComprobantesFilterQueryText = ref('{}');
+const availableComprobantesFilterQueryText = ref("{}");
 const findAvailableComprobantesTextAreaPlaceholder = ref(
   "Enter the search comprobante query..."
 );
 const storagedComprobantes = ref([]);
 const filteredStoragedComprobantes = ref([]);
 const storagedComprobantesFilterQuery = ref({});
-const storagedComprobantesFilterQueryText = ref('{}');
+const storagedComprobantesFilterQueryText = ref("{}");
 const findStoragedComprobantesTextAreaPlaceholder = ref(
   "Enter the search comprobante query..."
 );
@@ -39,6 +36,7 @@ const availableComprobantesCurrentPage = ref(1);
 const availableComprobantesItemsPerPage = ref(10);
 const storagedComprobantesCurrentPage = ref(1);
 const storagedComprobantesItemsPerPage = ref(10);
+
 const availableComprobantesTotalPages = computed(() => {
   if (filteredAvailableComprobantes.value != null) {
     return Math.ceil(
@@ -60,6 +58,28 @@ const availablePaginatedComprobantes = computed(() => {
     return 0;
   }
 });
+const availableComprobantesPageBeforeCurrentPage = computed(() => {
+  if (
+    filteredAvailableComprobantes.value != null &&
+    availableComprobantesCurrentPage.value > 1
+  ) {
+    return availableComprobantesCurrentPage.value - 1;
+  } else {
+    return 0;
+  }
+});
+const availableComprobantesPageAfterCurrentPage = computed(() => {
+  if (
+    filteredAvailableComprobantes.value != null &&
+    availableComprobantesCurrentPage.value <
+      availableComprobantesTotalPages.value
+  ) {
+    return availableComprobantesCurrentPage.value + 1;
+  } else {
+    return 0;
+  }
+});
+
 const storagedComprobantesTotalPages = computed(() => {
   if (filteredStoragedComprobantes.value != null) {
     return Math.ceil(
@@ -77,6 +97,26 @@ const storagedPaginatedComprobantes = computed(() => {
       storagedComprobantesItemsPerPage.value;
     const end = start + storagedComprobantesItemsPerPage.value;
     return filteredStoragedComprobantes.value.slice(start, end);
+  } else {
+    return 0;
+  }
+});
+const storagedComprobantesPageBeforeCurrentPage = computed(() => {
+  if (
+    filteredStoragedComprobantes.value != null &&
+    storagedComprobantesCurrentPage.value > 1
+  ) {
+    return storagedComprobantesCurrentPage.value - 1;
+  } else {
+    return 0;
+  }
+});
+const storagedComprobantesPageAfterCurrentPage = computed(() => {
+  if (
+    filteredStoragedComprobantes.value != null &&
+    storagedComprobantesCurrentPage.value < storagedComprobantesTotalPages.value
+  ) {
+    return storagedComprobantesCurrentPage.value + 1;
   } else {
     return 0;
   }
@@ -115,19 +155,28 @@ async function storageAvailableComprobanteButtonOnClick(
   await fillStoragedComprobantesDiv();
 }
 
-function availableComprobantesPreviousPageButtonOnClick() {
+function availableComprobantesFirstPageButtonOnClick() {
+  availableComprobantesCurrentPage.value = 1;
+}
+
+function availableComprobantesBeforeCurrentPageButtonOnClick() {
   if (availableComprobantesCurrentPage.value > 1) {
     availableComprobantesCurrentPage.value--;
   }
 }
 
-function availableComprobantesNextPageButtonOnClick() {
+function availableComprobantesAfterCurrentPageButtonOnClick() {
   if (
     availableComprobantesCurrentPage.value <
     availableComprobantesTotalPages.value
   ) {
     availableComprobantesCurrentPage.value++;
   }
+}
+
+function availableComprobantesLastPageButtonOnClick() {
+  availableComprobantesCurrentPage.value =
+    availableComprobantesTotalPages.value;
 }
 
 async function deleteStoragedComprobanteButtonOnClick(
@@ -137,18 +186,26 @@ async function deleteStoragedComprobanteButtonOnClick(
   await fillStoragedComprobantesDiv();
 }
 
-function storagedComprobantesPreviousPageButtonOnClick() {
+function storagedComprobantesFirstPageButtonOnClick() {
+  storagedComprobantesCurrentPage.value = 1;
+}
+
+function storagedComprobantesBeforeCurrentPageButtonOnClick() {
   if (storagedComprobantesCurrentPage.value > 1) {
     storagedComprobantesCurrentPage.value--;
   }
 }
 
-function storagedComprobantesNextPageButtonOnClick() {
+function storagedComprobantesAfterCurrentPageButtonOnClick() {
   if (
     storagedComprobantesCurrentPage.value < storagedComprobantesTotalPages.value
   ) {
     storagedComprobantesCurrentPage.value++;
   }
+}
+
+function storagedComprobantesLastPageButtonOnClick() {
+  storagedComprobantesCurrentPage.value = storagedComprobantesTotalPages.value;
 }
 
 //Auxiliary funcions
@@ -168,7 +225,6 @@ async function fillStoragedComprobantesDiv() {
   showStoragedComprobantes.value = true;
 }
 
-
 //Vue.js functions
 onMounted(async () => {
   try {
@@ -184,13 +240,12 @@ onMounted(async () => {
 watch(availableComprobantesFilterQueryText, (newText) => {
   try {
     const parsed = JSON.parse(newText);
-    if (typeof parsed === 'object' && parsed !== null) {
+    if (typeof parsed === "object" && parsed !== null) {
       availableComprobantesFilterQuery.value = parsed;
     } else {
       availableComprobantesFilterQuery.value = {};
     }
   } catch (e) {
-    console.warn('Invalid query JSON:', e.message);
     availableComprobantesFilterQuery.value = {};
   }
 });
@@ -200,10 +255,13 @@ watch(
   () => {
     try {
       filteredAvailableComprobantes.value = mingo
-        .find(availableComprobantes.value, availableComprobantesFilterQuery.value)
+        .find(
+          availableComprobantes.value,
+          availableComprobantesFilterQuery.value
+        )
         .all();
+      availableComprobantesCurrentPage.value = 1;
     } catch (e) {
-      console.warn('Mingo query error:', e.message);
       filteredAvailableComprobantes.value = [];
     }
   },
@@ -213,13 +271,12 @@ watch(
 watch(storagedComprobantesFilterQueryText, (newText) => {
   try {
     const parsed = JSON.parse(newText);
-    if (typeof parsed === 'object' && parsed !== null) {
+    if (typeof parsed === "object" && parsed !== null) {
       storagedComprobantesFilterQuery.value = parsed;
     } else {
       storagedComprobantesFilterQuery.value = {};
     }
   } catch (e) {
-    console.warn('Invalid query JSON:', e.message);
     storagedComprobantesFilterQuery.value = {};
   }
 });
@@ -231,8 +288,8 @@ watch(
       filteredStoragedComprobantes.value = mingo
         .find(storagedComprobantes.value, storagedComprobantesFilterQuery.value)
         .all();
+      storagedComprobantesCurrentPage.value = 1;
     } catch (e) {
-      console.warn('Mingo query error:', e.message);
       filteredStoragedComprobantes.value = [];
     }
   },
@@ -346,25 +403,53 @@ watch(
           class="d-flex justify-content-center align-items-center w-100 gap-3 mt-3"
         >
           <button
+            v-if="availableComprobantesCurrentPage > 2"
             class="btn btn-secondary"
-            :disabled="availableComprobantesCurrentPage === 1"
-            @click="availableComprobantesPreviousPageButtonOnClick"
+            @click="availableComprobantesFirstPageButtonOnClick"
           >
-            Previous
+            1
           </button>
           <span
-            >Page {{ availableComprobantesCurrentPage }} of
-            {{ availableComprobantesTotalPages }}</span
-          >
-          <button
-            class="btn btn-secondary"
-            :disabled="
-              availableComprobantesCurrentPage ===
-              availableComprobantesTotalPages
+            v-if="
+              availableComprobantesCurrentPage > 2
             "
-            @click="availableComprobantesNextPageButtonOnClick"
           >
-            Next
+            ...
+          </span>
+          <button
+            v-if="availableComprobantesCurrentPage > 1"
+            class="btn btn-secondary"
+            @click="availableComprobantesBeforeCurrentPageButtonOnClick"
+          >
+            {{ availableComprobantesPageBeforeCurrentPage }}
+          </button>
+          <span>{{ availableComprobantesCurrentPage }}</span>
+          <button
+            v-if="
+              availableComprobantesCurrentPage <
+              availableComprobantesTotalPages - 1
+            "
+            class="btn btn-secondary"
+            @click="availableComprobantesAfterCurrentPageButtonOnClick"
+          >
+            {{ availableComprobantesPageAfterCurrentPage }}
+          </button>
+          <span
+            v-if="
+              availableComprobantesCurrentPage <
+              availableComprobantesTotalPages - 1
+            "
+          >
+            ...
+          </span>
+          <button
+            v-if="
+              availableComprobantesCurrentPage < availableComprobantesTotalPages
+            "
+            class="btn btn-secondary"
+            @click="availableComprobantesLastPageButtonOnClick"
+          >
+            {{ availableComprobantesTotalPages }}
           </button>
         </div>
       </div>
@@ -392,7 +477,7 @@ watch(
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
-      <div 
+      <div
         v-else
         class="d-flex flex-column justify-content-start align-items-start w-100"
       >
@@ -426,24 +511,53 @@ watch(
           class="d-flex justify-content-center align-items-center w-100 gap-3 mt-3"
         >
           <button
+            v-if="storagedComprobantesCurrentPage > 2"
             class="btn btn-secondary"
-            :disabled="storagedComprobantesCurrentPage === 1"
-            @click="storagedComprobantesPreviousPageButtonOnClick"
+            @click="storagedComprobantesFirstPageButtonOnClick"
           >
-            Previous
+            1
           </button>
           <span
-            >Page {{ storagedComprobantesCurrentPage }} of
-            {{ storagedComprobantesTotalPages }}</span
-          >
-          <button
-            class="btn btn-secondary"
-            :disabled="
-              storagedComprobantesCurrentPage === storagedComprobantesTotalPages
+            v-if="
+              storagedComprobantesCurrentPage > 2
             "
-            @click="storagedComprobantesNextPageButtonOnClick"
           >
-            Next
+            ...
+          </span>
+          <button
+            v-if="storagedComprobantesCurrentPage > 1"
+            class="btn btn-secondary"
+            @click="storagedComprobantesBeforeCurrentPageButtonOnClick"
+          >
+            {{ storagedComprobantesPageBeforeCurrentPage }}
+          </button>
+          <span>{{ storagedComprobantesCurrentPage }}</span>
+          <button
+            v-if="
+              storagedComprobantesCurrentPage <
+              storagedComprobantesTotalPages - 1
+            "
+            class="btn btn-secondary"
+            @click="storagedComprobantesAfterCurrentPageButtonOnClick"
+          >
+            {{ storagedComprobantesPageAfterCurrentPage }}
+          </button>
+          <span
+            v-if="
+              storagedComprobantesCurrentPage <
+              storagedComprobantesTotalPages - 1
+            "
+          >
+            ...
+          </span>
+          <button
+            v-if="
+              storagedComprobantesCurrentPage < storagedComprobantesTotalPages
+            "
+            class="btn btn-secondary"
+            @click="storagedComprobantesLastPageButtonOnClick"
+          >
+            {{ storagedComprobantesTotalPages }}
           </button>
         </div>
       </div>
