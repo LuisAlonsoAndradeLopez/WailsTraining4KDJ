@@ -20,10 +20,6 @@ function goToUsersManager() {
 function goToBooksManager() {
   changeView("BooksManager");
 }
-
-function goToComprobantesDataSerializerAndStorager() {
-  changeView("ComprobantesDataSerializerAndStorager");
-}
 </script>
 
 <template>
@@ -44,9 +40,6 @@ function goToComprobantesDataSerializerAndStorager() {
     </button>
     <button class="btn btn-dark btn-md border" @click="goToBooksManager">
       Go to Books Manager
-    </button>
-    <button class="btn btn-dark btn-md border" @click="goToComprobantesDataSerializerAndStorager">
-      Go to Files Downloader
     </button>
   </div>
 </template>

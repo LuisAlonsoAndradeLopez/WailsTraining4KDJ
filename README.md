@@ -18,7 +18,6 @@ go get github.com/PuerkitoBio/goquery
 
 go get package github.com/wailsapp/wails/v2
 go get package github.com/qiniu/qmgo
-go get package github.com/SaulEnriqueMR/kore-models@v1.0.96
 ```
 
 En la carpeta "frontend"

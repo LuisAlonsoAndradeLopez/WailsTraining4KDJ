@@ -1,7 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import MainMenu from '../views/MainMenu.vue'
 import BooksManager from '../views/BooksManager.vue'
-import ComprobantesDataSerializerAndStorager from '../views/ComprobantesDataSerializerAndStorager.vue'
 import RESTApiTester from '../views/RESTApiTester.vue'
 import SOAPApiTester from '../views/SOAPApiTester.vue'
 import UsersManager from '../views/UsersManager.vue'
@@ -16,11 +15,6 @@ const routes = [
     path: '/books-manager',
     name: 'BooksManager',
     component: BooksManager
-  },
-  {
-    path: '/files-downloader',
-    name: 'ComprobantesDataSerializerAndStorager',
-    component: ComprobantesDataSerializerAndStorager
   },
   {
     path: '/rest-api-tester',
