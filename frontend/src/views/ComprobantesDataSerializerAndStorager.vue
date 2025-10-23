@@ -24,8 +24,67 @@ const findAvailableComprobantesTextAreaPlaceholder = ref(
 );
 const storagedComprobantes = ref([]);
 const filteredStoragedComprobantes = ref([]);
-const storagedComprobantesFilterQuery = ref({});
+const storagedComprobantesComprobanteTypes = computed(() => {
+  const uniqueComprobanteTypes = storagedComprobantes.value.map(sc => sc.TipoComprobante)
+  return [...new Set(uniqueComprobanteTypes)]
+})
+const storagedComprobantesIssueDates = computed(() => {
+  const uniqueIssueDates = storagedComprobantes.value.map(sc => sc.FechaEmision)
+  return [...new Set(uniqueIssueDates)]
+})
+const storagedComprobantesRFCs = computed(() => {
+  const uniqueRFCs = storagedComprobantes.value.map(sc => sc.RfcProvCertif)
+  return [...new Set(uniqueRFCs)]
+})
+const storagedComprobantesSeries = computed(() => {
+  const uniqueSeries = storagedComprobantes.value.map(sc => sc.Serie)
+  return [...new Set(uniqueSeries)]
+})
+const storagedComprobantesFolios = computed(() => {
+  const uniqueFolios = storagedComprobantes.value.map(sc => sc.Folio)
+  return [...new Set(uniqueFolios)]
+})
+const storagedComprobantesUUIDs = computed(() => {
+  const uniqueUUIDs = storagedComprobantes.value.map(sc => sc.Uuid)
+  return [...new Set(uniqueUUIDs)]
+})
+const storagedComprobantesComprobanteTypeSearchField = ref("anyComprobanteType");
+const storagedComprobantesIssueDateSearchField = ref("anyIssueDate");
+const storagedComprobantesRFCSearchField = ref("anyRFC");
+const storagedComprobantesSerieSearchField = ref("anySerie");
+const storagedComprobantesFolioSearchField = ref("anyFolio");
+const storagedComprobantesUUIDSearchField = ref("anyUUID");
 const storagedComprobantesFilterQueryText = ref("{}");
+const storagedComprobantesManualFilterQuery = ref({})
+const storagedComprobantesSelectFilterQuery = computed(() => {
+  const query = {}
+
+  if (storagedComprobantesComprobanteTypeSearchField.value !== 'anyComprobanteType')
+    query.TipoComprobante = storagedComprobantesComprobanteTypeSearchField.value
+
+  if (storagedComprobantesIssueDateSearchField.value !== 'anyIssueDate')
+    query.FechaEmision = storagedComprobantesIssueDateSearchField.value
+
+  if (storagedComprobantesRFCSearchField.value !== 'anyRFC')
+    query.RfcProvCertif = storagedComprobantesRFCSearchField.value
+
+  if (storagedComprobantesSerieSearchField.value !== 'anySerie')
+    query.Serie = storagedComprobantesSerieSearchField.value
+
+  if (storagedComprobantesFolioSearchField.value !== 'anyFolio')
+    query.Folio = storagedComprobantesFolioSearchField.value
+
+  if (storagedComprobantesUUIDSearchField.value !== 'anyUUID')
+    query.Uuid = storagedComprobantesUUIDSearchField.value
+
+  return query
+})
+const storagedComprobantesFilterQuery = computed(() => {
+  return {
+    ...storagedComprobantesManualFilterQuery.value,
+    ...storagedComprobantesSelectFilterQuery.value,
+  }
+})
 const findStoragedComprobantesTextAreaPlaceholder = ref(
   "Enter the search comprobante query..."
 );
@@ -225,6 +284,7 @@ async function fillStoragedComprobantesDiv() {
   showStoragedComprobantes.value = true;
 }
 
+
 //Vue.js functions
 onMounted(async () => {
   try {
@@ -270,16 +330,13 @@ watch(
 
 watch(storagedComprobantesFilterQueryText, (newText) => {
   try {
-    const parsed = JSON.parse(newText);
-    if (typeof parsed === "object" && parsed !== null) {
-      storagedComprobantesFilterQuery.value = parsed;
-    } else {
-      storagedComprobantesFilterQuery.value = {};
-    }
-  } catch (e) {
-    storagedComprobantesFilterQuery.value = {};
+    const parsed = JSON.parse(newText)
+    storagedComprobantesManualFilterQuery.value =
+      typeof parsed === 'object' && parsed !== null ? parsed : {}
+  } catch {
+    storagedComprobantesManualFilterQuery.value = {}
   }
-});
+})
 
 watch(
   [storagedComprobantes, storagedComprobantesFilterQuery],
@@ -287,14 +344,14 @@ watch(
     try {
       filteredStoragedComprobantes.value = mingo
         .find(storagedComprobantes.value, storagedComprobantesFilterQuery.value)
-        .all();
-      storagedComprobantesCurrentPage.value = 1;
-    } catch (e) {
-      filteredStoragedComprobantes.value = [];
+        .all()
+    } catch (err) {
+      console.error('Error filtering comprobantes:', err)
+      filteredStoragedComprobantes.value = []
     }
   },
   { immediate: true }
-);
+)
 </script>
 
 <template>
@@ -409,13 +466,7 @@ watch(
           >
             1
           </button>
-          <span
-            v-if="
-              availableComprobantesCurrentPage > 2
-            "
-          >
-            ...
-          </span>
+          <span v-if="availableComprobantesCurrentPage > 2"> ... </span>
           <button
             v-if="availableComprobantesCurrentPage > 1"
             class="btn btn-secondary"
@@ -458,14 +509,6 @@ watch(
     <div
       class="d-flex flex-column justify-content-start align-items-center w-100 mx-5 p-2 gap-2 bg-black comprobantes-module-div"
     >
-      <textarea
-        type="text"
-        v-model="storagedComprobantesFilterQueryText"
-        class="form-control fs-3 lh-1"
-        id="find-textarea"
-        :placeholder="findStoragedComprobantesTextAreaPlaceholder"
-      />
-      <h3 class="fw-bold fs-4">Storaged Comprobantes</h3>
       <div
         v-if="!showStoragedComprobantes"
         class="d-flex justify-content-center align-items-center w-100 h-100"
@@ -477,10 +520,128 @@ watch(
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
+
       <div
         v-else
-        class="d-flex flex-column justify-content-start align-items-start w-100"
+        class="d-flex flex-column justify-content-start align-items-center w-100"
       >
+        <textarea
+          type="text"
+          v-model="storagedComprobantesFilterQueryText"
+          class="form-control fs-3 lh-1"
+          id="find-textarea"
+          :placeholder="findStoragedComprobantesTextAreaPlaceholder"
+        />
+        <div
+          class="d-flex flex-column justify-content-center align-items-center p-2 gap-2 w-100"
+        >
+          <div
+            class="d-flex justify-content-center align-items-center w-100 gap-2"
+          >
+            <h3 class="fs-3 mt-1">Tipo de Comprobante:</h3>
+            <select
+              v-model="storagedComprobantesComprobanteTypeSearchField"
+              class="form-select w-25"
+              id="find-by-select"
+            >
+              <option value="anyComprobanteType">Any</option>
+              <option
+                v-for="(comprobanteType, index) in storagedComprobantesComprobanteTypes"
+                :key="index"
+                :value="comprobanteType"
+              >
+                {{ comprobanteType }}
+              </option>
+            </select>
+
+            <h3 class="fs-3 mt-1 ms-2">Fecha de emisión:</h3>
+            <select
+              v-model="storagedComprobantesIssueDateSearchField"
+              class="form-select w-25"
+              id="find-by-select"
+            >
+              <option value="anyIssueDate">Any</option>
+              <option
+                v-for="(issueDate, index) in storagedComprobantesIssueDates"
+                :key="index"
+                :value="issueDate"
+              >
+                {{ issueDate }}
+              </option>
+            </select>
+
+            <h3 class="fs-3 mt-1 ms-2">RFC:</h3>
+            <select
+              v-model="storagedComprobantesRFCSearchField"
+              class="form-select w-25"
+              id="find-by-select"
+            >
+              <option value="anyRFC">Any</option>
+              <option
+                v-for="(rfc, index) in storagedComprobantesRFCs"
+                :key="index"
+                :value="rfc"
+              >
+                {{ rfc }}
+              </option>
+            </select>
+          </div>
+
+          <div
+            class="d-flex justify-content-center align-items-center w-100 gap-2"
+          >
+            <h3 class="fs-3 mt-1">Serie:</h3>
+            <select
+              v-model="storagedComprobantesSerieSearchField"
+              class="form-select w-25"
+              id="find-by-select"
+            >
+              <option value="anySerie">Any</option>
+              <option
+                v-for="(serie, index) in storagedComprobantesSeries"
+                :key="index"
+                :value="serie"
+              >
+                {{ serie }}
+              </option>
+            </select>
+
+            <h3 class="fs-3 mt-1 ms-2">Folio:</h3>
+            <select
+              v-model="storagedComprobantesFolioSearchField"
+              class="form-select w-25"
+              id="find-by-select"
+            >
+              <option value="anyFolio">Any</option>
+              <option
+                v-for="(folio, index) in storagedComprobantesFolios"
+                :key="index"
+                :value="folio"
+              >
+                {{ folio }}
+              </option>
+            </select>
+
+            <h3 class="fs-3 mt-1 ms-2">UUID:</h3>
+            <select
+              v-model="storagedComprobantesUUIDSearchField"
+              class="form-select w-25"
+              id="find-by-select"
+            >
+              <option value="anyUUID">Any</option>
+              <option
+                v-for="(uuid, index) in storagedComprobantesUUIDs"
+                :key="index"
+                :value="uuid"
+              >
+                {{ uuid }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="fw-bold fs-4 mt-2">Storaged Comprobantes</h3>
+
         <div
           class="d-flex flex-column justify-content-start align-items-start w-100 gap-2 comprobantes-div"
         >
@@ -517,13 +678,7 @@ watch(
           >
             1
           </button>
-          <span
-            v-if="
-              storagedComprobantesCurrentPage > 2
-            "
-          >
-            ...
-          </span>
+          <span v-if="storagedComprobantesCurrentPage > 2"> ... </span>
           <button
             v-if="storagedComprobantesCurrentPage > 1"
             class="btn btn-secondary"
@@ -572,7 +727,7 @@ watch(
 }
 
 .comprobantes-module-div {
-  height: 95.5vh;
+  height: 117vh;
 }
 
 .comprobantes-div {
